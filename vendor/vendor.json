@@ -1,0 +1,65 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"path": "context",
+			"revision": ""
+		},
+		{
+			"checksumSHA1": "2avCvSn0XonfApKKuTMyiQmk7s0=",
+			"path": "github.com/Sirupsen/logrus",
+			"revision": "3ec0642a7fb6488f65b06f9040adc67e3990296a",
+			"revisionTime": "2016-08-29T20:23:21Z"
+		},
+		{
+			"checksumSHA1": "8C6hbcW3iPuwRfWoOWFtg4ca5sk=",
+			"path": "github.com/coreos/go-systemd/sdjournal",
+			"revision": "a63dfec412dc3675ec36888f359f8a1e5c3f740d",
+			"revisionTime": "2016-09-20T09:21:07Z"
+		},
+		{
+			"checksumSHA1": "O8c/VKtW34XPJNNlyeb/im8vWSI=",
+			"path": "github.com/coreos/pkg/dlopen",
+			"revision": "3ac0863d7acf3bc44daf49afef8919af12f704ef",
+			"revisionTime": "2016-07-27T23:37:14Z"
+		},
+		{
+			"checksumSHA1": "g/V4qrXjUGG9B+e3hB+4NAYJ5Gs=",
+			"path": "github.com/gorilla/context",
+			"revision": "08b5f424b9271eedf6f9f0ce86cb9396ed337a42",
+			"revisionTime": "2016-08-17T18:46:32Z"
+		},
+		{
+			"checksumSHA1": "urMd7A9QPAJYY0GZJL9qBhlUmD8=",
+			"path": "github.com/gorilla/mux",
+			"revision": "757bef944d0f21880861c2dd9c871ca543023cba",
+			"revisionTime": "2016-09-20T23:08:13Z"
+		},
+		{
+			"checksumSHA1": "drSl/ipSHSsHWWTrp3WZw4LN/No=",
+			"path": "github.com/xeipuuv/gojsonpointer",
+			"revision": "e0fe6f68307607d540ed8eac07a342c33fa1b54a",
+			"revisionTime": "2015-10-27T08:21:46Z"
+		},
+		{
+			"checksumSHA1": "pSoUW+qY6LwIJ5lFwGohPU5HUpg=",
+			"path": "github.com/xeipuuv/gojsonreference",
+			"revision": "e02fc20de94c78484cd5ffb007f8af96be030a45",
+			"revisionTime": "2015-08-08T06:50:54Z"
+		},
+		{
+			"checksumSHA1": "nn4f6UFCOMVAcYSH7YyYk4hsj5E=",
+			"path": "github.com/xeipuuv/gojsonschema",
+			"revision": "00f9fafb54d2244d291b86ab63d12c38bd5c3886",
+			"revisionTime": "2016-09-14T00:16:04Z"
+		},
+		{
+			"checksumSHA1": "vu7njn8O4vhFtmgGWntwjA2NAbk=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9",
+			"revisionTime": "2016-09-14T20:33:16Z"
+		}
+	],
+	"rootPath": "github.com/dcos/dcos-go"
+}
