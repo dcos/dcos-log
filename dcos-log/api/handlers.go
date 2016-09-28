@@ -13,13 +13,13 @@ import (
 	"github.com/dcos/dcos-go/dcos-log/journal/reader"
 )
 
-type rangeHeader struct {
-	Cursor string
-	Skip   int64
-	Num    uint64
+// RangeHeader is a struct that describes a Range header.
+type RangeHeader struct {
+	Cursor                    string
+	SkipNext, SkipPrev, Limit uint64
 }
 
-func (r *rangeHeader) validateCursor() error {
+func (r *RangeHeader) validateCursor() error {
 	// empty cursor allowed
 	if r.Cursor == "" {
 		return nil
@@ -35,8 +35,8 @@ func (r *rangeHeader) validateCursor() error {
 	return nil
 }
 
-func parseRangeHeader(h string) (r rangeHeader, err error) {
-	r = rangeHeader{}
+func parseRangeHeader(h string) (r RangeHeader, err error) {
+	r = RangeHeader{}
 
 	// Cursor format https://github.com/systemd/systemd/blob/master/src/journal/sd-journal.c#L937
 	// example entries=cursor[[:num_skip]:num_entries]
@@ -50,12 +50,18 @@ func parseRangeHeader(h string) (r rangeHeader, err error) {
 		return r, err
 	}
 
-	r.Skip, err = strconv.ParseInt(hArray[1], 10, 64)
+	skip, err := strconv.ParseInt(hArray[1], 10, 64)
 	if err != nil {
 		return r, err
 	}
 
-	r.Num, err = strconv.ParseUint(hArray[2], 10, 64)
+	if skip > 0 {
+		r.SkipNext = uint64(skip)
+	} else if skip < 0 {
+		r.SkipPrev = uint64(-skip)
+	}
+
+	r.Limit, err = strconv.ParseUint(hArray[2], 10, 64)
 	if err != nil {
 		return r, err
 	}
@@ -68,30 +74,9 @@ func writeErrorResponse(w http.ResponseWriter, code int, msg string) {
 	http.Error(w, msg, code)
 }
 
-func advanceCursor(rHeader rangeHeader, j *reader.Reader) error {
-	// find the cursor position to start with considering how many entries to skip
-	// negative value allowed
-	if rHeader.Skip > 0 {
-		if _, err := j.Journal.NextSkip(uint64(rHeader.Skip)); err != nil {
-			return fmt.Errorf("Unable to advance cursor with NextSkip: %s", err)
-		}
-	} else if rHeader.Skip < 0 {
-		// if no cursor passed, move cursor to the very end
-		if rHeader.Cursor == "" {
-			if err := j.Journal.SeekTail(); err != nil {
-				return fmt.Errorf("Unable to advance cursor to a tail: %s", err)
-			}
-		}
-		if _, err := j.Journal.PreviousSkip(uint64(-rHeader.Skip)); err != nil {
-			return fmt.Errorf("Unable to advanec cursor with PreviousSkip: %s", err)
-		}
-	}
-	return nil
-}
-
 func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, contentType reader.ContentType) {
 	var (
-		rHeader rangeHeader
+		rHeader RangeHeader
 		err     error
 	)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -105,21 +90,39 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, c
 			return
 		}
 
-		if stream && rHeader.Num != 0 {
-			writeErrorResponse(w, http.StatusBadRequest, "Cannot use num with stream")
+		if stream && rHeader.Limit != 0 {
+			writeErrorResponse(w, http.StatusBadRequest, "Unable to limit a number of log entries in following mode")
 			return
 		}
 	}
 
-	// open journal reader
-	var limit *reader.Num
-	if rHeader.Num > 0 {
-		limit = &reader.Num{
-			Value: rHeader.Num,
+	// Parse form parameters and apply matches
+	var matches []reader.Match
+	if err := req.ParseForm(); err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, "Could not parse request form")
+		return
+	}
+
+	for matchKey, matchValues := range req.Form {
+		for _, matchValue := range matchValues {
+			matches = append(matches, reader.Match{
+				Field: matchKey,
+				Value: matchValue,
+			})
 		}
 	}
 
-	j, err := reader.NewReader(limit, contentType)
+	// build a config for a specific request
+	journalConfig := reader.JournalReaderConfig{
+		Cursor:      rHeader.Cursor,
+		ContentType: contentType,
+		Limit:       rHeader.Limit,
+		SkipNext:    rHeader.SkipNext,
+		SkipPrev:    rHeader.SkipPrev,
+		Matches:     matches,
+	}
+
+	j, err := reader.NewReader(journalConfig)
 	if err != nil {
 		e := fmt.Sprintf("Error opening journal reader: %s", err)
 		writeErrorResponse(w, http.StatusInternalServerError, e)
@@ -134,59 +137,6 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, c
 		}
 	}()
 	defer cancel()
-
-	// Parse form parameters
-	if err := req.ParseForm(); err != nil {
-		writeErrorResponse(w, http.StatusInternalServerError, "Could not parse request form")
-		return
-	}
-
-	// Apply filters
-	for matchKey, matchValues := range req.Form {
-		for _, matchValue := range matchValues {
-			match := fmt.Sprintf("%s=%s", matchKey, matchValue)
-			logrus.Debugf("Adding match: %s", match)
-			if err := j.Journal.AddMatch(match); err != nil {
-				e := fmt.Sprintf("Could not add match %s %s: %s", matchKey, matchValues, err)
-				writeErrorResponse(w, http.StatusInternalServerError, e)
-				return
-			}
-			if err := j.Journal.AddConjunction(); err != nil {
-				e := fmt.Sprintf("Could not add conjunction %s %s: %s", matchKey, matchValues, err)
-				writeErrorResponse(w, http.StatusInternalServerError, e)
-				return
-			}
-		}
-	}
-
-	if rHeader.Cursor != "" {
-		if err := j.Journal.SeekCursor(rHeader.Cursor); err != nil {
-			e := fmt.Sprintf("Error seeking cursor %s: %s", rHeader.Cursor, err)
-			writeErrorResponse(w, http.StatusInternalServerError, e)
-			return
-		}
-
-		if _, err := j.Journal.Next(); err != nil {
-			e := fmt.Sprintf("Could not advance the cursor: %s", err)
-			writeErrorResponse(w, http.StatusInternalServerError, e)
-			return
-		}
-
-		// Verify if we found a cursor
-		if err = j.Journal.TestCursor(rHeader.Cursor); err != nil {
-			e := fmt.Sprintf("Error seeking cursor: %s", err)
-			writeErrorResponse(w, http.StatusInternalServerError, e)
-			return
-		}
-
-		if err := advanceCursor(rHeader, j); err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err.Error())
-		}
-	} else {
-		if err := advanceCursor(rHeader, j); err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err.Error())
-		}
-	}
 
 	w.Header().Set("Content-Type", string(contentType))
 	if !stream {
