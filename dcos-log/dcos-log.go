@@ -14,10 +14,5 @@ func main() {
 		logrus.Fatalf("Could not load config: %s", err)
 	}
 
-	if cfg.FlagVerbose {
-		logrus.SetLevel(logrus.DebugLevel)
-		logrus.Debug("Using debug level")
-	}
-
 	logrus.Fatal(api.StartServer(cfg))
 }

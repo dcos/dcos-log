@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"flag"
+
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -66,6 +68,12 @@ func NewConfig(args []string) (*Config, error) {
 	// override with user provided arguments
 	if err := flagSet.Parse(args[1:]); err != nil {
 		return config, err
+	}
+
+	// set debug level
+	if config.FlagVerbose {
+		logrus.SetLevel(logrus.DebugLevel)
+		logrus.Debug("Using debug level")
 	}
 
 	return config, validate(config)

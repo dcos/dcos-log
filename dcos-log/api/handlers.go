@@ -145,7 +145,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, c
 	for matchKey, matchValues := range req.Form {
 		for _, matchValue := range matchValues {
 			match := fmt.Sprintf("%s=%s", matchKey, matchValue)
-			logrus.Infof("Adding match: %s", match)
+			logrus.Debugf("Adding match: %s", match)
 			if err := j.Journal.AddMatch(match); err != nil {
 				e := fmt.Sprintf("Could not add match %s %s: %s", matchKey, matchValues, err)
 				writeErrorResponse(w, http.StatusInternalServerError, e)
