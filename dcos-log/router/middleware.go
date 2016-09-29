@@ -17,8 +17,8 @@ func validateQueryStringMiddleware(next http.Handler) http.Handler {
 				// validate user input parameters length
 				// since rfc http://www.faqs.org/rfcs/rfc2068.html does not specify the required
 				// parameters length, let's let's make sure that neither key, nor value
-				// bigger then 100 bytes.
-				if len(paramName) > 100 || len(paramValue) > 100 {
+				// bigger then 255 bytes.
+				if len(paramName) > 255 || len(paramValue) > 255 {
 					http.Error(w, "Incorrect query string", http.StatusBadRequest)
 					return
 				}
