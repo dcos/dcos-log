@@ -1,6 +1,6 @@
 package api
 
-import "github.com/dcos/dcos-go/dcos-log/router"
+import "github.com/dcos/dcos-log/dcos-log/router"
 
 func loadRoutes() []router.Route {
 	return []router.Route{

@@ -10,7 +10,7 @@ fi
 
 [ -z $IMG ] && IMG=$1
 
-container=$(docker run -d --privileged -v $PWD:/go/src/github.com/dcos/dcos-go -p8080:8080 $IMG /sbin/init)
+container=$(docker run -d --privileged -v $PWD:/go/src/github.com/dcos/dcos-log -p8080:8080 $IMG /sbin/init)
 echo "# Using port :8080"
 echo "# Run:"
 echo "docker exec -it $container /bin/bash"

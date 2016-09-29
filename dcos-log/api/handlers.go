@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/dcos/dcos-go/dcos-log/journal/reader"
+	"github.com/dcos/dcos-log/dcos-log/journal/reader"
 )
 
 // RangeHeader is a struct that describes a Range header.

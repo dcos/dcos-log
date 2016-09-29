@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/dcos/dcos-go/dcos-log/api"
-	"github.com/dcos/dcos-go/dcos-log/config"
+	"github.com/dcos/dcos-log/dcos-log/api"
+	"github.com/dcos/dcos-log/dcos-log/config"
 )
 
 func main() {

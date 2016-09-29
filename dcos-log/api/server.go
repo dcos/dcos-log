@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/dcos/dcos-go/dcos-log/config"
-	"github.com/dcos/dcos-go/dcos-log/router"
+	"github.com/dcos/dcos-log/dcos-log/config"
+	"github.com/dcos/dcos-log/dcos-log/router"
 )
 
 // StartServer is an entry point to dcos-log service.
