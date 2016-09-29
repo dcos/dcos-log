@@ -104,6 +104,12 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, c
 	}
 
 	for matchKey, matchValues := range req.Form {
+		// keys starting with double underscores are ignored
+		if strings.HasPrefix(matchKey, "__") {
+			logrus.Debugf("Skipping key: %s", matchKey)
+			continue
+		}
+
 		for _, matchValue := range matchValues {
 			matches = append(matches, reader.Match{
 				Field: matchKey,
