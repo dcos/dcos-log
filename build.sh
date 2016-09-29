@@ -10,4 +10,4 @@ fi
 
 [ -z $IMG ] && IMG=$1
 
-docker run -v $PWD:/go/src/github.com/dcos/dcos-go $IMG make -C /go/src/github.com/dcos/dcos-go
+docker run -v $PWD:/go/src/github.com/dcos/dcos-log $IMG make -C /go/src/github.com/dcos/dcos-log

@@ -1,7 +1,7 @@
 # Top level docker container used to build go projects.
 
 # Build all projects:
-# docker run -v $GOPATH:/go <contaier-id> make -C /go/src/github.com/dcos/dcos-go
+# docker run -v $GOPATH:/go <contaier-id> make -C /go/src/github.com/dcos/dcos-log
 
 FROM golang:1.7.1
 
