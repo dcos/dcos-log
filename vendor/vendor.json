@@ -13,6 +13,12 @@
 			"revisionTime": "2016-08-29T20:23:21Z"
 		},
 		{
+			"checksumSHA1": "RBwpnMpfQt7Jo7YWrRph0Vwe+f0=",
+			"path": "github.com/coreos/go-systemd/activation",
+			"revision": "a63dfec412dc3675ec36888f359f8a1e5c3f740d",
+			"revisionTime": "2016-09-20T09:21:07Z"
+		},
+		{
 			"checksumSHA1": "8C6hbcW3iPuwRfWoOWFtg4ca5sk=",
 			"path": "github.com/coreos/go-systemd/sdjournal",
 			"revision": "a63dfec412dc3675ec36888f359f8a1e5c3f740d",
