@@ -43,6 +43,6 @@ type Route struct {
 
 func wrapHandler(handler http.Handler, route Route) http.Handler {
 	// apply appropriate middleware
-	handler = validateQueryStringMiddleware(authMiddleware(handler))
+	handler = rangeGETParamToReqestHeaderMiddleware(validateQueryStringMiddleware(authMiddleware(handler)))
 	return handler
 }
