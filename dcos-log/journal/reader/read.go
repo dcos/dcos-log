@@ -222,7 +222,19 @@ func (r *Reader) GetJSONEntry() (entryBytes []byte, err error) {
 		return entryBytes, err
 	}
 
-	entryBytes, err = json.Marshal(entry)
+	formattedEntry := struct {
+		Fields             map[string]string `json:"fields"`
+		Cursor             string            `json:"cursor"`
+		MonotonicTimestamp uint64            `json:"monotonic_timestamp"`
+		RealtimeTimestamp  uint64            `json:"realtime_timestamp"`
+	}{
+		Fields:             entry.Fields,
+		Cursor:             entry.Cursor,
+		MonotonicTimestamp: entry.MonotonicTimestamp,
+		RealtimeTimestamp:  entry.RealtimeTimestamp,
+	}
+
+	entryBytes, err = json.Marshal(formattedEntry)
 	if err != nil {
 		return entryBytes, err
 	}
@@ -230,7 +242,6 @@ func (r *Reader) GetJSONEntry() (entryBytes []byte, err error) {
 	entryPostfix := "\n"
 	entryBytes = append(entryBytes, []byte(entryPostfix)...)
 	return entryBytes, nil
-
 }
 
 // GetTextEntry returns log entries in plain text
