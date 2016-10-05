@@ -136,10 +136,6 @@ func (r *Reader) SeekCursor(c string) error {
 		return fmt.Errorf("Cursor %s not found: %s", c, err)
 	}
 
-	// now if we found the cursor, let's move it a step back to the original position
-	if _, err := r.Journal.Previous(); err != nil {
-		return err
-	}
 	return nil
 }
 
