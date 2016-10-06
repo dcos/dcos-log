@@ -120,11 +120,11 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 
 	// create a journal reader instance with required options.
 	j, err := reader.NewReader(entryFormatter,
+		reader.OptionMatch(matches),
 		reader.OptionSeekCursor(rHeader.Cursor),
 		reader.OptionLimit(rHeader.Limit),
 		reader.OptionSkipNext(rHeader.SkipNext),
-		reader.OptionSkipPrev(rHeader.SkipPrev),
-		reader.OptionMatch(matches))
+		reader.OptionSkipPrev(rHeader.SkipPrev))
 	if err != nil {
 		e := fmt.Sprintf("Error opening journal reader: %s", err)
 		writeErrorResponse(w, http.StatusInternalServerError, e)
@@ -134,7 +134,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	go func() {
 		select {
 		case <-ctx.Done():
-			logrus.Info("Requests fulfilled, closing journal")
+			logrus.Debug("Requests fulfilled, closing journal")
 			j.Journal.Close()
 		}
 	}()
@@ -164,7 +164,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		select {
 		case <-notify:
 			{
-				logrus.Info("Closing a client connecton")
+				logrus.Debug("Closing a client connecton")
 				return
 			}
 		case <-time.After(time.Second):
