@@ -22,7 +22,7 @@ func loadRoutes() []router.Route {
 		},
 		{
 			URL:     "/stream",
-			Handler: streamingServerTextHandler,
+			Handler: streamingServerStarHandler,
 			Headers: []string{"Accept", "\\*/\\*"},
 		},
 
@@ -44,7 +44,7 @@ func loadRoutes() []router.Route {
 		},
 		{
 			URL:     "/logs",
-			Handler: rangeServerTextHandler,
+			Handler: rangeServerStarHandler,
 			Headers: []string{"Accept", "\\*/\\*"},
 		},
 	}

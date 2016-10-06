@@ -74,7 +74,7 @@ func writeErrorResponse(w http.ResponseWriter, code int, msg string) {
 	http.Error(w, msg, code)
 }
 
-func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, contentType reader.ContentType) {
+func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
 	var (
 		rHeader RangeHeader
 		err     error
@@ -97,7 +97,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, c
 	}
 
 	// Parse form parameters and apply matches
-	var matches []reader.Match
+	var matches []reader.JournalEntryMatch
 	if err := req.ParseForm(); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, "Could not parse request form")
 		return
@@ -111,24 +111,20 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, c
 		}
 
 		for _, matchValue := range matchValues {
-			matches = append(matches, reader.Match{
+			matches = append(matches, reader.JournalEntryMatch{
 				Field: matchKey,
 				Value: matchValue,
 			})
 		}
 	}
 
-	// build a config for a specific request
-	journalConfig := reader.JournalReaderConfig{
-		Cursor:      rHeader.Cursor,
-		ContentType: contentType,
-		Limit:       rHeader.Limit,
-		SkipNext:    rHeader.SkipNext,
-		SkipPrev:    rHeader.SkipPrev,
-		Matches:     matches,
-	}
-
-	j, err := reader.NewReader(journalConfig)
+	// create a journal reader instance with required options.
+	j, err := reader.NewReader(entryFormatter,
+		reader.OptionSeekCursor(rHeader.Cursor),
+		reader.OptionLimit(rHeader.Limit),
+		reader.OptionSkipNext(rHeader.SkipNext),
+		reader.OptionSkipPrev(rHeader.SkipPrev),
+		reader.OptionMatch(matches))
 	if err != nil {
 		e := fmt.Sprintf("Error opening journal reader: %s", err)
 		writeErrorResponse(w, http.StatusInternalServerError, e)
@@ -144,7 +140,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, c
 	}()
 	defer cancel()
 
-	w.Header().Set("Content-Type", string(contentType))
+	w.Header().Set("Content-Type", entryFormatter.GetContentType())
 	if !stream {
 		b, err := io.Copy(w, j)
 		if err != nil {
@@ -182,26 +178,34 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, c
 
 // Streaming handlers
 func streamingServerTextHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, true, reader.ContentTypeText)
+	readJournalHandler(w, req, true, reader.FormatText{})
 }
 
 func streamingServerJSONHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, true, reader.ContentTypeJSON)
+	readJournalHandler(w, req, true, reader.FormatJSON{})
 }
 
 func streamingServerSSEHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, true, reader.ContentTypeStream)
+	readJournalHandler(w, req, true, reader.FormatSSE{})
+}
+
+func streamingServerStarHandler(w http.ResponseWriter, req *http.Request) {
+	readJournalHandler(w, req, true, reader.FormatText{})
 }
 
 // Range handlers
-func rangeServerSSEHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, false, reader.ContentTypeStream)
+func rangeServerTextHandler(w http.ResponseWriter, req *http.Request) {
+	readJournalHandler(w, req, false, reader.FormatText{})
 }
 
 func rangeServerJSONHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, false, reader.ContentTypeJSON)
+	readJournalHandler(w, req, false, reader.FormatJSON{})
 }
 
-func rangeServerTextHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, false, reader.ContentTypeText)
+func rangeServerSSEHandler(w http.ResponseWriter, req *http.Request) {
+	readJournalHandler(w, req, false, reader.FormatSSE{})
+}
+
+func rangeServerStarHandler(w http.ResponseWriter, req *http.Request) {
+	readJournalHandler(w, req, false, reader.FormatText{})
 }

@@ -31,11 +31,7 @@ func TestJournalReaderAllLogs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	journalConfig := JournalReaderConfig{
-		ContentType: ContentTypeText,
-	}
-
-	r, err := NewReader(journalConfig)
+	r, err := NewReader(FormatText{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,12 +56,7 @@ func TestJournalReaderAllLogs(t *testing.T) {
 }
 
 func TestJournalLimit(t *testing.T) {
-	journalConfig := JournalReaderConfig{
-		ContentType: ContentTypeText,
-		Limit:       10,
-	}
-
-	r, err := NewReader(journalConfig)
+	r, err := NewReader(FormatText{}, OptionLimit(10))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,17 +91,12 @@ func TestJournalFind(t *testing.T) {
 	// wait for journal entries to commit
 	time.Sleep(time.Millisecond * 100)
 
-	journalConfig := JournalReaderConfig{
-		ContentType: ContentTypeText,
-		Matches: []Match{
-			{
-				Field: "CUSTOM_FIELD",
-				Value: first,
-			},
+	r, err := NewReader(FormatText{}, OptionMatch([]JournalEntryMatch{
+		{
+			Field: "CUSTOM_FIELD",
+			Value: first,
 		},
-	}
-
-	r, err := NewReader(journalConfig)
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,18 +127,12 @@ func TestJournalSkipForward(t *testing.T) {
 	// wait for journal entries to commit
 	time.Sleep(time.Millisecond * 100)
 
-	journalConfig := JournalReaderConfig{
-		ContentType: ContentTypeJSON,
-		SkipNext:    2,
-		Matches: []Match{
-			{
-				Field: "CUSTOM_FIELD",
-				Value: uniq,
-			},
+	r, err := NewReader(FormatJSON{}, OptionMatch([]JournalEntryMatch{
+		{
+			Field: "CUSTOM_FIELD",
+			Value: uniq,
 		},
-	}
-
-	r, err := NewReader(journalConfig)
+	}), OptionSkipNext(2))
 	if err != nil {
 		t.Fatal(err)
 	}
