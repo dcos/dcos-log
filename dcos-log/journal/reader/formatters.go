@@ -13,7 +13,7 @@ type ContentType string
 
 var (
 	// ContentTypePlainText is a ContentType header for plain text logs.
-	ContentTypePlainText = "plain/text"
+	ContentTypePlainText = "text/plain"
 
 	// ContentTypeApplicationJSON is a ContentType header for json logs.
 	ContentTypeApplicationJSON = "application/json"
