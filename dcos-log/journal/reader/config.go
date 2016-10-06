@@ -1,60 +1,69 @@
 package reader
 
-import (
-	"errors"
-	"fmt"
-)
+// Option is a functional option that configures a Reader.
+type Option func(*Reader) error
 
-// EntriesLimit defines a number of entries to read.
-type EntriesLimit uint64
-
-// JournalReaderConfig is a structure that defines journal reader options.
-type JournalReaderConfig struct {
-	// Cursor defines a cursor position in the journal.
-	Cursor string
-
-	//ContentType defines a response format.
-	ContentType ContentType
-
-	// Limit sets a limited number of entries to display.
-	// If not set, do not use any limitation, show all entries until we hit io.EOF
-	Limit uint64
-
-	UseLimit bool
-
-	// SkipNext skips number of entries from the current cursor position forward.
-	SkipNext uint64
-
-	// SkipPrev skips number of entries from the current cursor position backward.
-	SkipPrev uint64
-
-	// Matches is an array of filters to match.
-	Matches []Match
+// OptionLimit is a functional option sets a limit of entries to read from a journal.
+func OptionLimit(n uint64) Option {
+	return func(r *Reader) error {
+		r.Limit = n
+		r.UseLimit = n > 0
+		return nil
+	}
 }
 
-// Validate makes sure the config has a valid options.
-func (j *JournalReaderConfig) Validate() error {
-	if j.SkipNext != 0 && j.SkipPrev != 0 {
-		return errors.New("Cannot have SkipNext and SkipPrev at the same time")
-	}
+// OptionMatch is a functional option that filters entries based on []JournalEntryMatch.
+func OptionMatch(m []JournalEntryMatch) Option {
+	return func(r *Reader) error {
+		if r.Journal == nil {
+			return ErrUninitializedReader
+		}
 
-	switch j.ContentType {
-	case ContentTypeText:
-	case ContentTypeJSON:
-	case ContentTypeStream:
-	default:
-		return fmt.Errorf("Incorrect content type used: %s", j.ContentType)
-	}
+		for _, match := range m {
+			r.Journal.AddMatch(match.String())
+		}
 
-	return nil
+		return nil
+	}
 }
 
-// Match is a convenience wrapper to describe filters supplied to AddMatch.
-type Match struct {
+// OptionSeekCursor is a functional option that seeks a cursor in the journal.
+func OptionSeekCursor(c string) Option {
+	return func(r *Reader) error {
+		if c != "" {
+			r.Cursor = c
+			return r.SeekCursor(c)
+		}
+		return nil
+	}
+}
+
+// OptionSkipNext is a functional option that skips forward N journal entries from the current cursor position.
+func OptionSkipNext(n uint64) Option {
+	return func(r *Reader) error {
+		if n != 0 {
+			return r.SkipNext(n)
+		}
+		return nil
+	}
+}
+
+// OptionSkipPrev is a functional option that skips backward N journal entries from the current cursor position.
+func OptionSkipPrev(n uint64) Option {
+	return func(r *Reader) error {
+		if n != 0 {
+			return r.SkipPrev(n)
+		}
+		return nil
+	}
+}
+
+// JournalEntryMatch is a convenience wrapper to describe filters supplied to AddMatch.
+type JournalEntryMatch struct {
 	Field, Value string
 }
 
 // String returns a string representation of a Match suitable for use with AddMatch.
-func (m *Match) String() string {
+func (m *JournalEntryMatch) String() string {
 	return m.Field + "=" + m.Value
 }
