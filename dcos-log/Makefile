@@ -1,8 +1,13 @@
 all: lint test build
 
+install:
+	@echo "+$@"
+	go install
+
 gofmt:
 	@echo "+$@"
 	go fmt ./...
+
 lint:
 	@echo "+$@"
 	go get -u github.com/golang/lint/golint
@@ -19,3 +24,4 @@ build:
 clean:
 	@echo "+$@"
 	rm -f dcos-log
+

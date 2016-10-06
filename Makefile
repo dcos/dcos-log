@@ -3,6 +3,8 @@ SUBDIRS = $(filter-out vendor/., $(wildcard */.))
 SUBCLEAN = $(addsuffix .clean,$(SUBDIRS))
 SUBTEST = $(addsuffix .test,$(SUBDIRS))
 SUBLINT = $(addsuffix .lint,$(SUBDIRS))
+SUBINSTALL = $(addsuffix .install,$(SUBDIRS))
+SUBBUILD = $(addsuffix .build,$(SUBDIRS))
 
 # invoke make all for all subprojects
 all: $(SUBDIRS)
@@ -28,5 +30,16 @@ lint: $(SUBLINT)
 $(SUBLINT): %.lint:
 	$(MAKE) -C $* lint
 
-.PHONY: all $(SUBDIRS) clean $(SUBCLEAN) test $(SUBTEST) lint $(SUBLINT)
+install: $(SUBINSTALL)
+
+$(SUBINSTALL): %.install:
+	$(MAKE) -C $* install
+
+build: $(SUBBUILD)
+
+$(SUBBUILD): %.build:
+	$(MAKE) -C $* build
+
+.PHONY: all $(SUBDIRS) clean $(SUBCLEAN) test $(SUBTEST) lint $(SUBLINT) \
+	install $(SUBINSTALL) build $(SUBBUILD)
 

@@ -3,7 +3,7 @@
 # Build all projects:
 # docker run -v $GOPATH:/go <contaier-id> make -C /go/src/github.com/dcos/dcos-log
 
-FROM golang:1.7.1
+FROM golang:1.7
 
 RUN apt-get update && apt-get install -y \
     # used by dcos-log
