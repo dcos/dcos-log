@@ -15,6 +15,19 @@ import (
 	"github.com/dcos/dcos-log/dcos-log/journal/reader"
 )
 
+type getParam string
+
+func (g getParam) String() string {
+	return string(g)
+}
+
+const (
+	getParamLimit  getParam = "limit"
+	getParamSkip   getParam = "skip"
+	getParamFilter getParam = "filter"
+	getParamCursor getParam = "cursor"
+)
+
 func writeErrorResponse(w http.ResponseWriter, code int, msg string) {
 	logrus.Error(msg)
 	http.Error(w, msg, code)
@@ -37,7 +50,7 @@ func parseUINT64(s string) (bool, uint64, error) {
 }
 
 func getCursor(req *http.Request) (string, error) {
-	cursor := req.URL.Query().Get("cursor")
+	cursor := req.URL.Query().Get(getParamCursor.String())
 	if cursor == "" {
 		return cursor, nil
 	}
@@ -50,7 +63,7 @@ func getCursor(req *http.Request) (string, error) {
 }
 
 func getLimit(req *http.Request, stream bool) (uint64, error) {
-	limitParam := req.URL.Query().Get("limit")
+	limitParam := req.URL.Query().Get(getParamLimit.String())
 	if limitParam == "" {
 		return 0, nil
 	}
@@ -72,7 +85,7 @@ func getLimit(req *http.Request, stream bool) (uint64, error) {
 }
 
 func getSkip(req *http.Request) (uint64, uint64, error) {
-	skipParam := req.URL.Query().Get("skip")
+	skipParam := req.URL.Query().Get(getParamSkip.String())
 	if skipParam == "" {
 		return 0, 0, nil
 	}
@@ -91,7 +104,7 @@ func getSkip(req *http.Request) (uint64, uint64, error) {
 
 func getMatches(req *http.Request) ([]reader.JournalEntryMatch, error) {
 	var matches []reader.JournalEntryMatch
-	for _, filter := range req.URL.Query()["filter"] {
+	for _, filter := range req.URL.Query()[getParamFilter.String()] {
 		filterArray := strings.Split(filter, ":")
 		if len(filterArray) != 2 {
 			return matches, fmt.Errorf("Incorrect filter parameter format, must be ?filer=key:value. Got %s", filter)
