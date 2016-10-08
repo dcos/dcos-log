@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -13,118 +15,135 @@ import (
 	"github.com/dcos/dcos-log/dcos-log/journal/reader"
 )
 
-// RangeHeader is a struct that describes a Range header.
-type RangeHeader struct {
-	Cursor                    string
-	SkipNext, SkipPrev, Limit uint64
-}
-
-func (r *RangeHeader) validateCursor() error {
-	// empty cursor allowed
-	if r.Cursor == "" {
-		return nil
-	}
-
-	// Cursor format https://github.com/systemd/systemd/blob/master/src/journal/sd-journal.c#L937
-	cArray := strings.Split(r.Cursor, ";")
-	if len(cArray) != 6 {
-		return fmt.Errorf("Incorrect cursor format. Got %s", r.Cursor)
-	}
-
-	//TODO: add more checks
-	return nil
-}
-
-func parseRangeHeader(h string) (r RangeHeader, err error) {
-	r = RangeHeader{}
-
-	// Cursor format https://github.com/systemd/systemd/blob/master/src/journal/sd-journal.c#L937
-	// example entries=cursor[[:num_skip]:num_entries]
-	hArray := strings.Split(h, ":")
-	if len(hArray) != 3 {
-		return r, fmt.Errorf("Unexpected header format. Got `%s`", h)
-	}
-
-	r.Cursor = strings.TrimPrefix(hArray[0], "entries=")
-	if err := r.validateCursor(); err != nil {
-		return r, err
-	}
-
-	skip, err := strconv.ParseInt(hArray[1], 10, 64)
-	if err != nil {
-		return r, err
-	}
-
-	if skip > 0 {
-		r.SkipNext = uint64(skip)
-	} else if skip < 0 {
-		r.SkipPrev = uint64(-skip)
-	}
-
-	r.Limit, err = strconv.ParseUint(hArray[2], 10, 64)
-	if err != nil {
-		return r, err
-	}
-
-	return r, nil
-}
-
 func writeErrorResponse(w http.ResponseWriter, code int, msg string) {
 	logrus.Error(msg)
 	http.Error(w, msg, code)
 }
 
-func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
-	var (
-		rHeader RangeHeader
-		err     error
-	)
-	ctx, cancel := context.WithCancel(context.Background())
+func parseUINT64(s string) (bool, uint64, error) {
+	var negative bool
 
-	reqRange := req.Header.Get("Range")
-	if reqRange != "" {
-		rHeader, err = parseRangeHeader(reqRange)
-		if err != nil {
-			e := fmt.Sprintf("Error parsing header `Range`: %s", err)
-			writeErrorResponse(w, http.StatusBadRequest, e)
-			return
-		}
-
-		if stream && rHeader.Limit != 0 {
-			writeErrorResponse(w, http.StatusBadRequest, "Unable to limit a number of log entries in following mode")
-			return
-		}
+	if s == "" {
+		return negative, 0, errors.New("Input string cannot be empty")
 	}
 
-	// Parse form parameters and apply matches
+	if strings.HasPrefix(s, "-") {
+		s = s[1:]
+		negative = true
+	}
+
+	n, err := strconv.ParseUint(s, 10, 64)
+	return negative, n, err
+}
+
+func getCursor(req *http.Request) (string, error) {
+	cursor := req.URL.Query().Get("cursor")
+	if cursor == "" {
+		return cursor, nil
+	}
+
+	cursor, err := url.QueryUnescape(cursor)
+	if err != nil {
+		return cursor, fmt.Errorf("Unable to unescape cursor parameter: %s", err)
+	}
+	return cursor, nil
+}
+
+func getLimit(req *http.Request, stream bool) (uint64, error) {
+	limitParam := req.URL.Query().Get("limit")
+	if limitParam == "" {
+		return 0, nil
+	}
+
+	negative, limit, err := parseUINT64(limitParam)
+	if err != nil {
+		return 0, fmt.Errorf("Error parsing paramter `limit`: %s", err)
+	}
+
+	if stream {
+		return 0, errors.New("Unable to stream events with `limit` parameter")
+	}
+
+	if negative {
+		return 0, errors.New("Number of entries cannot be negative value")
+	}
+
+	return limit, nil
+}
+
+func getSkip(req *http.Request) (uint64, uint64, error) {
+	skipParam := req.URL.Query().Get("skip")
+	if skipParam == "" {
+		return 0, 0, nil
+	}
+
+	negative, limit, err := parseUINT64(skipParam)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Error parsing parameter `skip`: %s", err)
+	}
+
+	if negative {
+		return 0, limit, nil
+	}
+
+	return limit, 0, nil
+}
+
+func getMatches(req *http.Request) ([]reader.JournalEntryMatch, error) {
 	var matches []reader.JournalEntryMatch
-	if err := req.ParseForm(); err != nil {
-		writeErrorResponse(w, http.StatusInternalServerError, "Could not parse request form")
+	for _, filter := range req.URL.Query()["filter"] {
+		filterArray := strings.Split(filter, ":")
+		if len(filterArray) != 2 {
+			return matches, fmt.Errorf("Incorrect filter parameter format, must be ?filer=key:value. Got %s", filter)
+		}
+
+		matches = append(matches, reader.JournalEntryMatch{
+			Field: filterArray[0],
+			Value: filterArray[1],
+		})
+	}
+
+	return matches, nil
+}
+
+func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Read `filter` parameters.
+	matches, err := getMatches(req)
+	if err != nil {
+		writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	for matchKey, matchValues := range req.Form {
-		// keys starting with double underscores are ignored
-		if strings.HasPrefix(matchKey, "__") {
-			logrus.Debugf("Skipping key: %s", matchKey)
-			continue
-		}
+	// Read `cursor` parameter.
+	cursor, err := getCursor(req)
+	if err != nil {
+		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
-		for _, matchValue := range matchValues {
-			matches = append(matches, reader.JournalEntryMatch{
-				Field: matchKey,
-				Value: matchValue,
-			})
-		}
+	// Read `limit` parameter.
+	limit, err := getLimit(req, stream)
+	if err != nil {
+		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Read `skip` parameter.
+	skipNext, skipPrev, err := getSkip(req)
+	if err != nil {
+		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	// create a journal reader instance with required options.
 	j, err := reader.NewReader(entryFormatter,
 		reader.OptionMatch(matches),
-		reader.OptionSeekCursor(rHeader.Cursor),
-		reader.OptionLimit(rHeader.Limit),
-		reader.OptionSkipNext(rHeader.SkipNext),
-		reader.OptionSkipPrev(rHeader.SkipPrev))
+		reader.OptionSeekCursor(cursor),
+		reader.OptionLimit(limit),
+		reader.OptionSkipNext(skipNext),
+		reader.OptionSkipPrev(skipPrev))
 	if err != nil {
 		e := fmt.Sprintf("Error opening journal reader: %s", err)
 		writeErrorResponse(w, http.StatusInternalServerError, e)
