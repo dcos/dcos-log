@@ -21,6 +21,7 @@ func (g getParam) String() string {
 	return string(g)
 }
 
+// Constants used as request valid GET parameters. All other paramter is ignored.
 const (
 	getParamLimit  getParam = "limit"
 	getParamSkip   getParam = "skip"
@@ -28,16 +29,17 @@ const (
 	getParamCursor getParam = "cursor"
 )
 
-func writeErrorResponse(w http.ResponseWriter, code int, msg string) {
+func httpError(w http.ResponseWriter, msg string, code int) {
 	logrus.Error(msg)
 	http.Error(w, msg, code)
 }
 
-func parseUINT64(s string) (bool, uint64, error) {
-	var negative bool
-
+// parseUint64 takes a string and tried to convert it into uint64. API allows to use negative values which indicates
+// we should move backwards from the current cursor position. If a string starts with `-`, we remove the negative
+// sign and return value negative true.
+func parseUint64(s string) (negative bool, n uint64, err error) {
 	if s == "" {
-		return negative, 0, errors.New("Input string cannot be empty")
+		return negative, n, errors.New("Input string cannot be empty")
 	}
 
 	if strings.HasPrefix(s, "-") {
@@ -45,10 +47,11 @@ func parseUINT64(s string) (bool, uint64, error) {
 		negative = true
 	}
 
-	n, err := strconv.ParseUint(s, 10, 64)
+	n, err = strconv.ParseUint(s, 10, 64)
 	return negative, n, err
 }
 
+// Cursor string contains special characters we have to escape. This function returns un-escaped cursor.
 func getCursor(req *http.Request) (string, error) {
 	cursor := req.URL.Query().Get(getParamCursor.String())
 	if cursor == "" {
@@ -62,13 +65,15 @@ func getCursor(req *http.Request) (string, error) {
 	return cursor, nil
 }
 
+// GET paramter `limit` is a string which must contain positive uint64 value. This parameter cannot be used with
+// stream-events option.
 func getLimit(req *http.Request, stream bool) (uint64, error) {
 	limitParam := req.URL.Query().Get(getParamLimit.String())
 	if limitParam == "" {
 		return 0, nil
 	}
 
-	negative, limit, err := parseUINT64(limitParam)
+	negative, limit, err := parseUint64(limitParam)
 	if err != nil {
 		return 0, fmt.Errorf("Error parsing paramter `limit`: %s", err)
 	}
@@ -84,13 +89,17 @@ func getLimit(req *http.Request, stream bool) (uint64, error) {
 	return limit, nil
 }
 
+// GET parameter `skip` is a string, which may start with `-` followed by uint64. This function returns 3 values:
+// 1. Number of log entries to skip from the current cursor position forward (uint64).
+// 2. Number of log entries to skip from the current cursor position backward (uint64).
+// 3. Error.
 func getSkip(req *http.Request) (uint64, uint64, error) {
 	skipParam := req.URL.Query().Get(getParamSkip.String())
 	if skipParam == "" {
 		return 0, 0, nil
 	}
 
-	negative, limit, err := parseUINT64(skipParam)
+	negative, limit, err := parseUint64(skipParam)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Error parsing parameter `skip`: %s", err)
 	}
@@ -102,6 +111,7 @@ func getSkip(req *http.Request) (uint64, uint64, error) {
 	return limit, 0, nil
 }
 
+// getMatches parses the GET parameter `filter` and returns []reader.JournalEntryMatch.
 func getMatches(req *http.Request) ([]reader.JournalEntryMatch, error) {
 	var matches []reader.JournalEntryMatch
 	for _, filter := range req.URL.Query()[getParamFilter.String()] {
@@ -119,34 +129,35 @@ func getMatches(req *http.Request) ([]reader.JournalEntryMatch, error) {
 	return matches, nil
 }
 
+// main handler.
 func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Read `filter` parameters.
 	matches, err := getMatches(req)
 	if err != nil {
-		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		httpError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Read `cursor` parameter.
 	cursor, err := getCursor(req)
 	if err != nil {
-		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		httpError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Read `limit` parameter.
 	limit, err := getLimit(req, stream)
 	if err != nil {
-		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		httpError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Read `skip` parameter.
 	skipNext, skipPrev, err := getSkip(req)
 	if err != nil {
-		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		httpError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -158,16 +169,17 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		reader.OptionSkipNext(skipNext),
 		reader.OptionSkipPrev(skipPrev))
 	if err != nil {
-		e := fmt.Sprintf("Error opening journal reader: %s", err)
-		writeErrorResponse(w, http.StatusInternalServerError, e)
+		httpError(w, fmt.Sprintf("Error opening journal reader: %s", err), http.StatusInternalServerError)
 		return
 	}
 
+	requestStartTime := time.Now()
 	go func() {
 		select {
 		case <-ctx.Done():
-			logrus.Debug("Requests fulfilled, closing journal")
 			j.Journal.Close()
+			logrus.Debugf("Request done in %s, URI: %s, remote addr: %s", time.Since(requestStartTime).String(),
+				req.RequestURI, req.RemoteAddr)
 		}
 	}()
 	defer cancel()
@@ -176,11 +188,12 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	if !stream {
 		b, err := io.Copy(w, j)
 		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+			httpError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if b == 0 {
-			writeErrorResponse(w, http.StatusNoContent, "No match found")
+			httpError(w, fmt.Sprintf("No match found. Request URI: %s", req.RequestURI),
+				           http.StatusNoContent)
 		}
 		return
 	}
@@ -196,7 +209,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		select {
 		case <-notify:
 			{
-				logrus.Debug("Closing a client connecton")
+				logrus.Debugf("Closing a client connecton.Request URI: %s", req.RequestURI)
 				return
 			}
 		case <-time.After(time.Second):
