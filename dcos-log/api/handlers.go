@@ -193,7 +193,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		}
 		if b == 0 {
 			httpError(w, fmt.Sprintf("No match found. Request URI: %s", req.RequestURI),
-				           http.StatusNoContent)
+				http.StatusNoContent)
 		}
 		return
 	}
