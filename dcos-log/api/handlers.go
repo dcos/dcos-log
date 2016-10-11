@@ -29,9 +29,11 @@ const (
 	getParamCursor getParam = "cursor"
 )
 
-func httpError(w http.ResponseWriter, msg string, code int) {
-	logrus.Error(msg)
-	http.Error(w, msg, code)
+func httpError(w http.ResponseWriter, msg string, code int, req *http.Request) {
+	debugString := fmt.Sprintf("Message: %s [request URI: %s; remote address: %s; Accept: %s; Proto: %s]", msg,
+		req.RequestURI, req.RemoteAddr, req.Header.Get("Accept"), req.Proto)
+	logrus.Error(debugString)
+	http.Error(w, debugString, code)
 }
 
 // parseUint64 takes a string and tried to convert it into uint64. API allows to use negative values which indicates
@@ -136,28 +138,28 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	// Read `filter` parameters.
 	matches, err := getMatches(req)
 	if err != nil {
-		httpError(w, err.Error(), http.StatusBadRequest)
+		httpError(w, err.Error(), http.StatusBadRequest, req)
 		return
 	}
 
 	// Read `cursor` parameter.
 	cursor, err := getCursor(req)
 	if err != nil {
-		httpError(w, err.Error(), http.StatusBadRequest)
+		httpError(w, err.Error(), http.StatusBadRequest, req)
 		return
 	}
 
 	// Read `limit` parameter.
 	limit, err := getLimit(req, stream)
 	if err != nil {
-		httpError(w, err.Error(), http.StatusBadRequest)
+		httpError(w, err.Error(), http.StatusBadRequest, req)
 		return
 	}
 
 	// Read `skip` parameter.
 	skipNext, skipPrev, err := getSkip(req)
 	if err != nil {
-		httpError(w, err.Error(), http.StatusBadRequest)
+		httpError(w, err.Error(), http.StatusBadRequest, req)
 		return
 	}
 
@@ -169,7 +171,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		reader.OptionSkipNext(skipNext),
 		reader.OptionSkipPrev(skipPrev))
 	if err != nil {
-		httpError(w, fmt.Sprintf("Error opening journal reader: %s", err), http.StatusInternalServerError)
+		httpError(w, fmt.Sprintf("Error opening journal reader: %s", err), http.StatusInternalServerError, req)
 		return
 	}
 
@@ -188,12 +190,11 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	if !stream {
 		b, err := io.Copy(w, j)
 		if err != nil {
-			httpError(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err.Error(), http.StatusInternalServerError, req)
 			return
 		}
 		if b == 0 {
-			httpError(w, fmt.Sprintf("No match found. Request URI: %s", req.RequestURI),
-				http.StatusNoContent)
+			httpError(w, "No match found", http.StatusNoContent, req)
 		}
 		return
 	}
