@@ -122,9 +122,10 @@ func getMatches(req *http.Request) ([]reader.JournalEntryMatch, error) {
 			return matches, fmt.Errorf("Incorrect filter parameter format, must be ?filer=key:value. Got %s", filter)
 		}
 
+		// all matches must uppercase
 		matches = append(matches, reader.JournalEntryMatch{
-			Field: filterArray[0],
-			Value: filterArray[1],
+			Field: strings.ToUpper(filterArray[0]),
+			Value: strings.ToUpper(filterArray[1]),
 		})
 	}
 

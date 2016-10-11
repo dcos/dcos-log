@@ -199,12 +199,12 @@ func TestGetMatches(t *testing.T) {
 		t.Fatalf("Must have 2 matches got %d", len(matches))
 	}
 
-	if matches[0].Field != "hello" || matches[0].Value != "world" {
-		t.Fatalf("Expecting hello=world match. Got %+v", matches[0])
+	if matches[0].Field != "HELLO" || matches[0].Value != "WORLD" {
+		t.Fatalf("Expecting HELLO=WORLD match. Got %+v", matches[0])
 	}
 
-	if matches[1].Field != "foo" || matches[1].Value != "bar" {
-		t.Fatalf("Expecting foo=bar match. Got %+v", matches[1])
+	if matches[1].Field != "FOO" || matches[1].Value != "BAR" {
+		t.Fatalf("Expecting FOO=BAR match. Got %+v", matches[1])
 	}
 }
 
