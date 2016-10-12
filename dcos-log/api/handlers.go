@@ -21,7 +21,7 @@ func (g getParam) String() string {
 	return string(g)
 }
 
-// Constants used as request valid GET parameters. All other paramter is ignored.
+// Constants used as request valid GET parameters. All other parameter is ignored.
 const (
 	getParamLimit  getParam = "limit"
 	getParamSkip   getParam = "skip"
@@ -80,7 +80,7 @@ func getLimit(req *http.Request, stream bool) (uint64, error) {
 		return 0, fmt.Errorf("Error parsing paramter `limit`: %s", err)
 	}
 
-	if stream {
+	if stream && limit > 0 {
 		return 0, errors.New("Unable to stream events with `limit` parameter")
 	}
 
