@@ -125,7 +125,7 @@ func getMatches(req *http.Request) ([]reader.JournalEntryMatch, error) {
 		// all matches must uppercase
 		matches = append(matches, reader.JournalEntryMatch{
 			Field: strings.ToUpper(filterArray[0]),
-			Value: strings.ToUpper(filterArray[1]),
+			Value: filterArray[1],
 		})
 	}
 
