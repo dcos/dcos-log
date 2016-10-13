@@ -105,8 +105,8 @@ func (r *Reader) Read(b []byte) (int, error) {
 		}
 
 		var (
-			c    uint64
-			err  error
+			c   uint64
+			err error
 		)
 		// advance the journal cursor. It has to be called at least one time
 		// before reading

@@ -214,7 +214,7 @@ func TestRangeServerSSEHandler(t *testing.T) {
 	for scanner.Scan() {
 		text := scanner.Text()
 		// skip \n
-		if text == "" || strings.HasPrefix(text, "id:"){
+		if text == "" || strings.HasPrefix(text, "id:") {
 			continue
 		}
 
@@ -272,7 +272,7 @@ func TestFieldsHandler(t *testing.T) {
 
 func newRequest(path string, headers map[string]string) (*httptest.ResponseRecorder, error) {
 	w := &httptest.ResponseRecorder{}
-	r, err := router.NewRouter(loadRoutes())
+	r, err := router.NewRouter(logRoutes())
 	if err != nil {
 		return w, err
 	}
