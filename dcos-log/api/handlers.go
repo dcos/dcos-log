@@ -164,6 +164,15 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		return
 	}
 
+	// Last-Event-ID is a value that contains a cursor. If the header is in the request, we should take
+	// the value and override the cursor parameter.
+	// https://www.html5rocks.com/en/tutorials/eventsource/basics/#toc-lastevent-id
+	lastEventID := req.Header.Get("Last-Event-ID")
+	if lastEventID != "" {
+		logrus.Debugf("Received `Last-Event-ID`: %s", lastEventID)
+		cursor = lastEventID
+	}
+
 	// create a journal reader instance with required options.
 	j, err := reader.NewReader(entryFormatter,
 		reader.OptionMatch(matches),
@@ -233,7 +242,7 @@ func streamingServerJSONHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func streamingServerSSEHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, true, reader.FormatSSE{})
+	readJournalHandler(w, req, true, reader.FormatSSE{UseCursorID: true})
 }
 
 func streamingServerStarHandler(w http.ResponseWriter, req *http.Request) {
@@ -250,7 +259,7 @@ func rangeServerJSONHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func rangeServerSSEHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, false, reader.FormatSSE{})
+	readJournalHandler(w, req, false, reader.FormatSSE{UseCursorID: true})
 }
 
 func rangeServerStarHandler(w http.ResponseWriter, req *http.Request) {

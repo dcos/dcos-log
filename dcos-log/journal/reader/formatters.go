@@ -2,6 +2,7 @@ package reader
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -96,7 +97,9 @@ func (j FormatJSON) FormatEntry(entry *sdjournal.JournalEntry) ([]byte, error) {
 
 // FormatSSE implements EntryFormatter for server sent event logs.
 // Must be in the following format: data: {...}\n\n
-type FormatSSE struct{}
+type FormatSSE struct {
+	UseCursorID bool
+}
 
 // GetContentType returns "text/event-stream"
 func (j FormatSSE) GetContentType() ContentType {
@@ -115,6 +118,12 @@ func (j FormatSSE) FormatEntry(entry *sdjournal.JournalEntry) ([]byte, error) {
 	entryPostfix := []byte("\n\n")
 	entryWithPostfix := append(entryBytes, entryPostfix...)
 	entrySSE := append(entryPrefix, entryWithPostfix...)
+
+	// if FormatSSE was initiated with useCursorID flag, then add id: cursor before the data.
+	if j.UseCursorID {
+		id := []byte(fmt.Sprintf("id: %s\n", entry.Cursor))
+		entrySSE = append(id, entrySSE...)
+	}
 	return entrySSE, nil
 }
 
