@@ -187,7 +187,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	}()
 	defer cancel()
 
-	w.Header().Set("Content-Type", entryFormatter.GetContentType())
+	w.Header().Set("Content-Type", entryFormatter.GetContentType().String())
 	if !stream {
 		b, err := io.Copy(w, j)
 		if err != nil {

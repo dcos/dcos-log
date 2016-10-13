@@ -13,19 +13,24 @@ type ContentType string
 
 var (
 	// ContentTypePlainText is a ContentType header for plain text logs.
-	ContentTypePlainText = "text/plain"
+	ContentTypePlainText ContentType = "text/plain"
 
 	// ContentTypeApplicationJSON is a ContentType header for json logs.
-	ContentTypeApplicationJSON = "application/json"
+	ContentTypeApplicationJSON ContentType = "application/json"
 
 	// ContentTypeEventStream is a ContentType header for event-stream logs.
-	ContentTypeEventStream = "text/event-stream"
+	ContentTypeEventStream ContentType = "text/event-stream"
 )
+
+// String returns a string representation of type "ContentType"
+func (c ContentType) String() string {
+	return string(c)
+}
 
 // EntryFormatter is an interface used by journal to write in a specific format.
 type EntryFormatter interface {
 	// GetContentType returns a content type for the entry formatter.
-	GetContentType() string
+	GetContentType() ContentType
 
 	// FormatEntry accepts `sdjournal.JournalEntry` and returns an array of bytes.
 	FormatEntry(*sdjournal.JournalEntry) ([]byte, error)
@@ -35,7 +40,7 @@ type EntryFormatter interface {
 type FormatText struct{}
 
 // GetContentType returns "text/plain"
-func (j FormatText) GetContentType() string {
+func (j FormatText) GetContentType() ContentType {
 	return ContentTypePlainText
 }
 
@@ -74,7 +79,7 @@ func (j FormatText) FormatEntry(entry *sdjournal.JournalEntry) (entryBytes []byt
 type FormatJSON struct{}
 
 // GetContentType returns "application/json"
-func (j FormatJSON) GetContentType() string {
+func (j FormatJSON) GetContentType() ContentType {
 	return ContentTypeApplicationJSON
 }
 
@@ -94,7 +99,7 @@ func (j FormatJSON) FormatEntry(entry *sdjournal.JournalEntry) ([]byte, error) {
 type FormatSSE struct{}
 
 // GetContentType returns "text/event-stream"
-func (j FormatSSE) GetContentType() string {
+func (j FormatSSE) GetContentType() ContentType {
 	return ContentTypeEventStream
 }
 
