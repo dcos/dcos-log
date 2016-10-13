@@ -95,8 +95,6 @@ curl -H 'Accept: application/json' '127.0.0.1:8080/logs?skip=-200&limit=1' | jq 
 
 #### Accept: text/event-stream
 ```
-curl -H 'Accept: text/plain' '127.0.0.1:8080/logs?skip=-200&limit=1'
-Wed Oct 12 06:28:20 2016 a60c1d059aea systemd [1] Starting Daily Cleanup of Temporary Directories.
-Maksyms-MacBook-Pro-2:packages mnaboka$ curl -H 'Accept: text/event-stream' '127.0.0.1:8080/logs?skip=-200&limit=1'
+curl -H 'Accept: text/event-stream' '127.0.0.1:8080/logs?skip=-200&limit=1'
 data: {"fields":{"CODE_FILE":"../src/core/unit.c","CODE_FUNCTION":"unit_status_log_starting_stopping_reloading","CODE_LINE":"1272","MESSAGE":"Starting Daily Cleanup of Temporary Directories.","MESSAGE_ID":"7d4958e842da4a758f6c1cdc7b36dcc5","PRIORITY":"6","SYSLOG_FACILITY":"3","SYSLOG_IDENTIFIER":"systemd","UNIT":"systemd-tmpfiles-clean.timer","_BOOT_ID":"637573ba91ae4008b58eaa9505a11f86","_CAP_EFFECTIVE":"3fffffffff","_CMDLINE":"/sbin/init","_COMM":"systemd","_EXE":"/lib/systemd/systemd","_GID":"0","_HOSTNAME":"a60c1d059aea","_MACHINE_ID":"48230110dd084e91b7b6885728b98295","_PID":"1","_SOURCE_REALTIME_TIMESTAMP":"1476253700204523","_SYSTEMD_CGROUP":"e","_TRANSPORT":"journal","_UID":"0"},"cursor":"s=f78aeb5184144e2a94963a42b0cac49e;i=262;b=637573ba91ae4008b58eaa9505a11f86;m=6fbb8f76b;t=53ea51966297e;x=69cba0539a7e4576","monotonic_timestamp":29993006955,"realtime_timestamp":1476253700204926}
 ```
