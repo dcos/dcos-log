@@ -245,10 +245,6 @@ func streamingServerSSEHandler(w http.ResponseWriter, req *http.Request) {
 	readJournalHandler(w, req, true, reader.FormatSSE{UseCursorID: true})
 }
 
-func streamingServerStarHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, true, reader.FormatText{})
-}
-
 // Range handlers
 func rangeServerTextHandler(w http.ResponseWriter, req *http.Request) {
 	readJournalHandler(w, req, false, reader.FormatText{})
@@ -260,8 +256,4 @@ func rangeServerJSONHandler(w http.ResponseWriter, req *http.Request) {
 
 func rangeServerSSEHandler(w http.ResponseWriter, req *http.Request) {
 	readJournalHandler(w, req, false, reader.FormatSSE{UseCursorID: true})
-}
-
-func rangeServerStarHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, false, reader.FormatText{})
 }

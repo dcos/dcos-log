@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -17,10 +18,6 @@ func NewRouter(routes []Route) (*mux.Router, error) {
 
 		if route.Handler == nil {
 			return router, fmt.Errorf("Handler function cannot be empty for the route: %v", route)
-		}
-
-		if len(route.Headers) != 2 {
-			return router, fmt.Errorf("Headers length must be 2, route: %v", route)
 		}
 
 		handler := http.HandlerFunc(route.Handler)
@@ -39,9 +36,16 @@ type Route struct {
 
 	// Headers is pair of headers passed to HeadersRegexp
 	Headers []string
+
+	// Use compress handler
+	Gzip bool
 }
 
 func wrapHandler(handler http.Handler, route Route) http.Handler {
 	// apply appropriate middleware
+	if route.Gzip {
+		handler = handlers.CompressHandler(handler)
+	}
+
 	return authMiddleware(handler)
 }
