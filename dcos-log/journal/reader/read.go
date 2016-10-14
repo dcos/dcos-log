@@ -43,10 +43,11 @@ func NewReader(contentFormatter EntryFormatter, options ...Option) (r *Reader, e
 
 // Reader is the main Journal Reader structure. It implements Reader interface.
 type Reader struct {
-	Journal  *sdjournal.Journal
-	Cursor   string
-	Limit    uint64
-	UseLimit bool
+	Journal                  *sdjournal.Journal
+	Cursor                   string
+	Limit                    uint64
+	UseLimit                 bool
+	SkippedNext, SkippedPrev uint64
 
 	msgReader        *bytes.Reader
 	contentFormatter EntryFormatter
@@ -54,7 +55,8 @@ type Reader struct {
 
 // SkipNext skips a journal by n entries forward.
 func (r *Reader) SkipNext(n uint64) error {
-	_, err := r.Journal.NextSkip(n)
+	var err error
+	r.SkippedNext, err = r.Journal.NextSkip(n)
 	return err
 }
 
@@ -66,7 +68,9 @@ func (r *Reader) SkipPrev(n uint64) error {
 			return fmt.Errorf("Could not move to the end if the journal: %s", err)
 		}
 	}
-	_, err := r.Journal.PreviousSkip(n)
+
+	var err error
+	r.SkippedPrev, err = r.Journal.PreviousSkip(n)
 	return err
 }
 
