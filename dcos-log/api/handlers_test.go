@@ -7,68 +7,6 @@ import (
 	"testing"
 )
 
-func TestParseUint64(t *testing.T) {
-
-	testValues := []struct {
-		input    string
-		actual   uint64
-		negative bool
-		errorOk  bool
-	}{
-		{
-			input:    "123456789",
-			actual:   123456789,
-			negative: false,
-		},
-		{
-			input:    "-123456789",
-			actual:   123456789,
-			negative: true,
-		},
-		{
-			// max uint64
-			input:    "18446744073709551615",
-			actual:   18446744073709551615,
-			negative: false,
-		},
-		{
-			// max uint64 + 1
-			input:   "18446744073709551616",
-			errorOk: true,
-		},
-		{
-			input: "0",
-		},
-		{
-			input:   "",
-			errorOk: true,
-		},
-	}
-
-	for _, testValue := range testValues {
-		negative, n, err := parseUint64(testValue.input)
-		if testValue.errorOk {
-			if err == nil {
-				t.Fatalf("Expecting error on input %s but no errors", testValue.input)
-			}
-			// if error is ok, do no check the rest of the values
-			continue
-		}
-
-		if err != nil {
-			t.Fatalf("test value %s: %s", testValue.input, err)
-		}
-
-		if negative != testValue.negative {
-			t.Fatalf("Input value: %s must not be negative", testValue.input)
-		}
-
-		if testValue.actual != n {
-			t.Fatalf("Input value: %s must return %d. Got %d", testValue.input, testValue.actual, n)
-		}
-	}
-}
-
 func TestGetCursor(t *testing.T) {
 	req, err := http.NewRequest("GET", "/?cursor=s%3Dcea8150abb0543deaab113ed2f39b014%3Bi%3D1%3Bb%3D2c357020b6e54863a5ac9dee71d5872c%3Bm%3D33ae8a1%3Bt%3D53e52ec99a798%3Bx%3Db3fe26128f768a49", nil)
 	if err != nil {
@@ -134,24 +72,27 @@ func TestGetSkip(t *testing.T) {
 		errorOk            bool
 	}{
 		{
-			uri:      "/?skip=10",
+			uri:      "/?skip_next=10",
 			skipNext: 10,
 		},
 		{
-			uri:      "/?skip=-10",
+			uri:      "/?skip_prev=10",
 			skipPrev: 10,
 		},
 		{
-			uri: "/?skip=0",
+			uri: "/?skip_next=0",
+		},
+		{
+			uri: "/?skip_prev=0",
 		},
 		{
 			// max uint64 + 1
-			uri:     "/?skip=18446744073709551616",
+			uri:     "/?skip_next=18446744073709551616",
 			errorOk: true,
 		},
 		{
 			// max uint64 + 1
-			uri:     "/?skip=-18446744073709551616",
+			uri:     "/?skip_prev=18446744073709551616",
 			errorOk: true,
 		},
 	}
@@ -209,7 +150,7 @@ func TestGetMatches(t *testing.T) {
 }
 
 func TestRangeServerTextHandler(t *testing.T) {
-	req, err := http.NewRequest("GET", "/logs?skip=-11", nil)
+	req, err := http.NewRequest("GET", "/logs?skip_prev=11", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -23,10 +23,11 @@ func (g getParam) String() string {
 
 // Constants used as request valid GET parameters. All other parameter is ignored.
 const (
-	getParamLimit  getParam = "limit"
-	getParamSkip   getParam = "skip"
-	getParamFilter getParam = "filter"
-	getParamCursor getParam = "cursor"
+	getParamLimit    getParam = "limit"
+	getParamSkipNext getParam = "skip_next"
+	getParamSkipPrev getParam = "skip_prev"
+	getParamFilter   getParam = "filter"
+	getParamCursor   getParam = "cursor"
 )
 
 func httpError(w http.ResponseWriter, msg string, code int, req *http.Request) {
@@ -34,23 +35,6 @@ func httpError(w http.ResponseWriter, msg string, code int, req *http.Request) {
 		req.RequestURI, req.RemoteAddr, req.Header.Get("Accept"), req.Proto)
 	logrus.Error(debugString)
 	http.Error(w, debugString, code)
-}
-
-// parseUint64 takes a string and tried to convert it into uint64. API allows to use negative values which indicates
-// we should move backwards from the current cursor position. If a string starts with `-`, we remove the negative
-// sign and return value negative true.
-func parseUint64(s string) (negative bool, n uint64, err error) {
-	if s == "" {
-		return negative, n, errors.New("Input string cannot be empty")
-	}
-
-	if strings.HasPrefix(s, "-") {
-		s = s[1:]
-		negative = true
-	}
-
-	n, err = strconv.ParseUint(s, 10, 64)
-	return negative, n, err
 }
 
 // Cursor string contains special characters we have to escape. This function returns un-escaped cursor.
@@ -75,7 +59,7 @@ func getLimit(req *http.Request, stream bool) (uint64, error) {
 		return 0, nil
 	}
 
-	negative, limit, err := parseUint64(limitParam)
+	limit, err := strconv.ParseUint(limitParam, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("Error parsing paramter `limit`: %s", err)
 	}
@@ -84,33 +68,31 @@ func getLimit(req *http.Request, stream bool) (uint64, error) {
 		return 0, errors.New("Unable to stream events with `limit` parameter")
 	}
 
-	if negative {
-		return 0, errors.New("Number of entries cannot be negative value")
-	}
-
 	return limit, nil
 }
 
-// GET parameter `skip` is a string, which may start with `-` followed by uint64. This function returns 3 values:
-// 1. Number of log entries to skip from the current cursor position forward (uint64).
-// 2. Number of log entries to skip from the current cursor position backward (uint64).
-// 3. Error.
+// try to parse `skip_next` and `skip_prev`
 func getSkip(req *http.Request) (uint64, uint64, error) {
-	skipParam := req.URL.Query().Get(getParamSkip.String())
-	if skipParam == "" {
-		return 0, 0, nil
+	var (
+		skipNext, skipPrev uint64
+		err                error
+	)
+
+	if skipParamNext := req.URL.Query().Get(getParamSkipNext.String()); skipParamNext != "" {
+		skipNext, err = strconv.ParseUint(skipParamNext, 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Error parsing parameter %s: %s", getParamSkipNext, err)
+		}
 	}
 
-	negative, limit, err := parseUint64(skipParam)
-	if err != nil {
-		return 0, 0, fmt.Errorf("Error parsing parameter `skip`: %s", err)
+	if skipParamPrev := req.URL.Query().Get(getParamSkipPrev.String()); skipParamPrev != "" {
+		skipPrev, err = strconv.ParseUint(skipParamPrev, 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Error parsing parameter %s: %s", getParamSkipPrev, err)
+		}
 	}
 
-	if negative {
-		return 0, limit, nil
-	}
-
-	return limit, 0, nil
+	return skipNext, skipPrev, nil
 }
 
 // getMatches parses the GET parameter `filter` and returns []reader.JournalEntryMatch.
@@ -197,6 +179,12 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	defer cancel()
 
 	w.Header().Set("Content-Type", entryFormatter.GetContentType().String())
+
+	// X-Journal-Skip-Next indicates how many entries we actually skipped forward from the current position.
+	// X-Journal-Skip-Prev indicates how many entries we actually skipped backwards from the current position.
+	// This feature can be used to tell whether we reached journal's top and/or bottom.
+	w.Header().Set("X-Journal-Skip-Next", strconv.FormatUint(j.SkippedNext, 10))
+	w.Header().Set("X-Journal-Skip-Prev", strconv.FormatUint(j.SkippedPrev, 10))
 	if !stream {
 		b, err := io.Copy(w, j)
 		if err != nil {
