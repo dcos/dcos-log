@@ -43,6 +43,9 @@ type Config struct {
 
 	//FlagJSONSchema is a path to a custom JSON schema used to validate user input.
 	FlagJSONSchema string
+
+	// FlagDebug enables pprof available at /debug/pprof endpoint.
+	FlagDebug bool
 }
 
 func (c *Config) setFlags(fs *flag.FlagSet) {
@@ -50,6 +53,7 @@ func (c *Config) setFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.FlagVerbose, "verbose", c.FlagVerbose, "Print out verbose output.")
 	fs.StringVar(&c.FlagConfig, "config", c.FlagConfig, "Use config file.")
 	fs.StringVar(&c.FlagJSONSchema, "config-json-schema", c.FlagJSONSchema, "Use a custom json schema.")
+	fs.BoolVar(&c.FlagDebug, "debug", c.FlagDebug, "Enable pprof HTTP endpoints.")
 }
 
 // NewConfig returns a new instance of Config with loaded fields.

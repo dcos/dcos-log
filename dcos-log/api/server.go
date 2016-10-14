@@ -12,7 +12,7 @@ import (
 
 // StartServer is an entry point to dcos-log service.
 func StartServer(cfg *config.Config) error {
-	router, err := router.NewRouter(loadRoutes())
+	router, err := router.NewRouter(loadRoutes(cfg))
 	if err != nil {
 		return err
 	}
