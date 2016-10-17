@@ -23,11 +23,12 @@ func (g getParam) String() string {
 
 // Constants used as request valid GET parameters. All other parameter is ignored.
 const (
-	getParamLimit    getParam = "limit"
-	getParamSkipNext getParam = "skip_next"
-	getParamSkipPrev getParam = "skip_prev"
-	getParamFilter   getParam = "filter"
-	getParamCursor   getParam = "cursor"
+	getParamLimit       getParam = "limit"
+	getParamSkipNext    getParam = "skip_next"
+	getParamSkipPrev    getParam = "skip_prev"
+	getParamFilter      getParam = "filter"
+	getParamCursor      getParam = "cursor"
+	getParamReadReverse getParam = "read_reverse"
 )
 
 func httpError(w http.ResponseWriter, msg string, code int, req *http.Request) {
@@ -114,6 +115,14 @@ func getMatches(req *http.Request) ([]reader.JournalEntryMatch, error) {
 	return matches, nil
 }
 
+func getReadReverse(req *http.Request) (bool, error) {
+	readReverse := req.URL.Query().Get(getParamReadReverse.String())
+	if readReverse == "" {
+		return false, nil
+	}
+	return strconv.ParseBool(readReverse)
+}
+
 // main handler.
 func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -146,6 +155,9 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		return
 	}
 
+	// Read `read_reverse` parameter.
+	readReverse, err := getReadReverse(req)
+
 	// Last-Event-ID is a value that contains a cursor. If the header is in the request, we should take
 	// the value and override the cursor parameter.
 	// https://www.html5rocks.com/en/tutorials/eventsource/basics/#toc-lastevent-id
@@ -161,7 +173,8 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		reader.OptionSeekCursor(cursor),
 		reader.OptionLimit(limit),
 		reader.OptionSkipNext(skipNext),
-		reader.OptionSkipPrev(skipPrev))
+		reader.OptionSkipPrev(skipPrev),
+		reader.OptionReadReverse(readReverse))
 	if err != nil {
 		httpError(w, fmt.Sprintf("Error opening journal reader: %s", err), http.StatusInternalServerError, req)
 		return
