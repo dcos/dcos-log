@@ -40,6 +40,7 @@ see `X-Journal-Skip-Prev` example above.
 - `?skip_next=N` skip forward number of entries from the current cursor position.
 - `?skip_prev=N` skip backwards number of entries from the current cursor position.
 - `?cursor=CURSOR` set cursor position. (Special characters must be escaped).
+- `?read_reverse=true` read the journal in opposite direction (bottom to top).
 
 where
 - `FIELD`, `value` and `CURSOR` are strings.
