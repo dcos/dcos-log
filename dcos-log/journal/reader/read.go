@@ -48,6 +48,7 @@ type Reader struct {
 	Limit                    uint64
 	UseLimit                 bool
 	SkippedNext, SkippedPrev uint64
+	ReadReverse              bool
 
 	msgReader        *bytes.Reader
 	contentFormatter EntryFormatter
@@ -103,9 +104,17 @@ func (r *Reader) Read(b []byte) (int, error) {
 			return 0, io.EOF
 		}
 
+		var (
+			c    uint64
+			err  error
+		)
 		// advance the journal cursor. It has to be called at least one time
 		// before reading
-		c, err := r.Journal.Next()
+		if r.ReadReverse {
+			c, err = r.Journal.Previous()
+		} else {
+			c, err = r.Journal.Next()
+		}
 		if err != nil {
 			return 0, err
 		}

@@ -12,6 +12,16 @@ var ErrCursorFormat = errors.New("Incorrect cursor string")
 // Option is a functional option that configures a Reader.
 type Option func(*Reader) error
 
+// OptionReadReverse is a functional option sets a reverse direction to read the journal.
+// By default we always read the journal up to down. If we use this option, we'll be reading the journal
+// in reverse.
+func OptionReadReverse(reverse bool) Option {
+	return func(r *Reader) error {
+		r.ReadReverse = reverse
+		return nil
+	}
+}
+
 // OptionLimit is a functional option sets a limit of entries to read from a journal.
 func OptionLimit(n uint64) Option {
 	return func(r *Reader) error {
