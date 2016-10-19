@@ -52,6 +52,12 @@ func logRoutes() []router.Route {
 			URL:     "/logs",
 			Handler: rangeServerTextHandler,
 		},
+
+		// get all values for a given field
+		{
+			URL:     "/fields/{field}",
+			Handler: fieldHandler,
+		},
 	}
 }
 

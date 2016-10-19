@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dcos/dcos-log/dcos-log/journal/reader"
+	"github.com/gorilla/mux"
 )
 
 type getParam string
@@ -257,4 +259,38 @@ func rangeServerJSONHandler(w http.ResponseWriter, req *http.Request) {
 
 func rangeServerSSEHandler(w http.ResponseWriter, req *http.Request) {
 	readJournalHandler(w, req, false, reader.FormatSSE{UseCursorID: true})
+}
+
+func fieldHandler(w http.ResponseWriter, req *http.Request) {
+	field := mux.Vars(req)["field"]
+	j, err := reader.NewReader(nil)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusBadRequest, req)
+		return
+	}
+	defer j.Journal.Close()
+
+	values, err := j.Journal.GetUniqueValues(field)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusBadRequest, req)
+		return
+	}
+
+	if len(values) == 0 {
+		msg := fmt.Sprintf("Field %s not found", field)
+		httpError(w, msg, http.StatusNoContent, req)
+		return
+	}
+
+	v, err := json.Marshal(values)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusInternalServerError, req)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(v)
+	if err != nil {
+		logrus.Errorf("Error writting to client: %s", err)
+	}
 }
