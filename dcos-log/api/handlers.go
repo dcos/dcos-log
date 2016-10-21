@@ -117,10 +117,14 @@ func getMatches(req *http.Request) ([]reader.JournalEntryMatch, error) {
 	return matches, nil
 }
 
-func getReadReverse(req *http.Request) (bool, error) {
+func getReadReverse(req *http.Request, stream bool) (bool, error) {
 	readReverse := req.URL.Query().Get(getParamReadReverse.String())
 	if readReverse == "" {
 		return false, nil
+	}
+
+	if stream {
+		return false, fmt.Errorf("Unable to stream events with `read_reverse` parameter")
 	}
 	return strconv.ParseBool(readReverse)
 }
@@ -158,7 +162,11 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	}
 
 	// Read `read_reverse` parameter.
-	readReverse, err := getReadReverse(req)
+	readReverse, err := getReadReverse(req, stream)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusBadRequest, req)
+		return
+	}
 
 	// Last-Event-ID is a value that contains a cursor. If the header is in the request, we should take
 	// the value and override the cursor parameter.
