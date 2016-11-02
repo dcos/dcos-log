@@ -133,11 +133,29 @@ func getReadReverse(req *http.Request, stream bool) (bool, error) {
 func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var matches []reader.JournalEntryMatch
+
+	// Try to find a container_id in url path.
+	containerID := mux.Vars(req)["container_id"]
+	if containerID != "" {
+		matches = []reader.JournalEntryMatch{
+			{
+				Field: "CONTAINER_ID",
+				Value: containerID,
+			},
+		}
+	}
+
 	// Read `filter` parameters.
-	matches, err := getMatches(req)
+	requestMatches, err := getMatches(req)
 	if err != nil {
 		httpError(w, err.Error(), http.StatusBadRequest, req)
 		return
+	}
+
+	// Append matches from get params.
+	if len(requestMatches) > 0 {
+		matches = append(matches, requestMatches...)
 	}
 
 	// Read `cursor` parameter.
@@ -241,32 +259,6 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 			}
 		}
 	}
-}
-
-// Streaming handlers
-func streamingServerTextHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, true, reader.FormatText{})
-}
-
-func streamingServerJSONHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, true, reader.FormatJSON{})
-}
-
-func streamingServerSSEHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, true, reader.FormatSSE{UseCursorID: true})
-}
-
-// Range handlers
-func rangeServerTextHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, false, reader.FormatText{})
-}
-
-func rangeServerJSONHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, false, reader.FormatJSON{})
-}
-
-func rangeServerSSEHandler(w http.ResponseWriter, req *http.Request) {
-	readJournalHandler(w, req, false, reader.FormatSSE{UseCursorID: true})
 }
 
 func fieldHandler(w http.ResponseWriter, req *http.Request) {
