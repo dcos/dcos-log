@@ -129,22 +129,42 @@ func getReadReverse(req *http.Request, stream bool) (bool, error) {
 	return strconv.ParseBool(readReverse)
 }
 
+func pathMatches(req *http.Request) []reader.JournalEntryMatch {
+	var matches []reader.JournalEntryMatch
+
+	// try to find container_id, framework_id and executor_id in request variables and apply
+	// appropriate matches.
+	for _, requestVar := range []struct{ fieldName, pathVar string }{
+		{
+			fieldName: "CONTAINER_ID",
+			pathVar:   "container_id",
+		},
+		{
+			fieldName: "FRAMEWORK_ID",
+			pathVar:   "framework_id",
+		},
+		{
+			fieldName: "EXECUTOR_ID",
+			pathVar:   "executor_id",
+		},
+	} {
+		value := mux.Vars(req)[requestVar.pathVar]
+		if value != "" {
+			matches = append(matches, reader.JournalEntryMatch{
+				Field: requestVar.fieldName,
+				Value: value,
+			})
+		}
+	}
+	return matches
+}
+
 // main handler.
 func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var matches []reader.JournalEntryMatch
-
-	// Try to find a container_id in url path.
-	containerID := mux.Vars(req)["container_id"]
-	if containerID != "" {
-		matches = []reader.JournalEntryMatch{
-			{
-				Field: "CONTAINER_ID",
-				Value: containerID,
-			},
-		}
-	}
+	// get a list of matches from request path
+	matches := pathMatches(req)
 
 	// Read `filter` parameters.
 	requestMatches, err := getMatches(req)

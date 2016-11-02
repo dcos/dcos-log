@@ -271,14 +271,24 @@ func TestFieldsHandler(t *testing.T) {
 	}
 }
 
-func TestContainerID(t *testing.T) {
-	uniqueStr := fmt.Sprintf("%d", time.Now().UnixNano())
-	err := journal.Send("TEST Container id: "+uniqueStr, journal.PriInfo, map[string]string{"CONTAINER_ID": uniqueStr})
+func TestContainerLogs(t *testing.T) {
+	containerID := fmt.Sprintf("%d", time.Now().UnixNano())
+	frameworkID := fmt.Sprintf("%d", time.Now().UnixNano())
+	executorID := fmt.Sprintf("%d", time.Now().UnixNano())
+
+	fields := map[string]string{
+		"CONTAINER_ID": containerID,
+		"FRAMEWORK_ID": frameworkID,
+		"EXECUTOR_ID":  executorID,
+	}
+
+	err := journal.Send("TEST Task request", journal.PriInfo, fields)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	w, err := newRequest("/logs/container/"+uniqueStr, map[string]string{"Accept": "application/json"})
+	url := fmt.Sprintf("/logs/framework/%s/executor/%s/container/%s", frameworkID, executorID, containerID)
+	w, err := newRequest(url, map[string]string{"Accept": "application/json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,13 +308,31 @@ func TestContainerID(t *testing.T) {
 		t.Fatal("Response not received")
 	}
 
-	message, ok := r.Fields["CONTAINER_ID"]
+	fID, ok := r.Fields["FRAMEWORK_ID"]
+	if !ok {
+		t.Fatalf("Expect `FRAMEWORK_ID`. Got %+v", r.Fields)
+	}
+
+	if fID != frameworkID {
+		t.Fatalf("Expect %s. Got %s", frameworkID, fID)
+	}
+
+	eID, ok := r.Fields["EXECUTOR_ID"]
+	if !ok {
+		t.Fatalf("Expect `EXECUTOR_ID`. Got %+v", r.Fields)
+	}
+
+	if eID != executorID {
+		t.Fatalf("Expect %s. Got %s", executorID, eID)
+	}
+
+	cID, ok := r.Fields["CONTAINER_ID"]
 	if !ok {
 		t.Fatalf("Expect `CONTAINER_ID`. Got %+v", r.Fields)
 	}
 
-	if message != uniqueStr {
-		t.Fatalf("Expect %s. Got %s", uniqueStr, message)
+	if cID != containerID {
+		t.Fatalf("Expect %s. Got %s", containerID, cID)
 	}
 }
 
