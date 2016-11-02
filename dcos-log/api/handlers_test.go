@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -267,6 +268,43 @@ func TestFieldsHandler(t *testing.T) {
 
 	if !contains(values, "A") || !contains(values, "B") || !contains(values, "C") || !contains(values, "D") {
 		t.Fatalf("Expect at least 4 values for JOURNALTEST field: A,B,C,D. Got %s", values)
+	}
+}
+
+func TestContainerID(t *testing.T) {
+	uniqueStr := fmt.Sprintf("%d", time.Now().UnixNano())
+	err := journal.Send("TEST Container id: "+uniqueStr, journal.PriInfo, map[string]string{"CONTAINER_ID": uniqueStr})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w, err := newRequest("/logs/container/"+uniqueStr, map[string]string{"Accept": "application/json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("response code must be 200. Got %d", w.Code)
+	}
+
+	var r struct {
+		Fields map[string]interface{} `json:"fields"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &r); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r.Fields) == 0 {
+		t.Fatal("Response not received")
+	}
+
+	message, ok := r.Fields["CONTAINER_ID"]
+	if !ok {
+		t.Fatalf("Expect `CONTAINER_ID`. Got %+v", r.Fields)
+	}
+
+	if message != uniqueStr {
+		t.Fatalf("Expect %s. Got %s", uniqueStr, message)
 	}
 }
 
