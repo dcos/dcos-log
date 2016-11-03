@@ -46,7 +46,8 @@ func dispatchLogs(url string, stream bool) []router.Route {
 		},
 		{
 			formatter: reader.FormatSSE{
-				UseCursorID: true,
+				// only streaming allows id: <cursor> field
+				UseCursorID: stream,
 			},
 			headers: []string{"Accept", "text/event-stream"},
 		},

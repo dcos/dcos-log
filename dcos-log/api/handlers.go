@@ -207,12 +207,14 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	}
 
 	// Last-Event-ID is a value that contains a cursor. If the header is in the request, we should take
-	// the value and override the cursor parameter.
+	// the value and override the cursor parameter. This will work for streaming endpoints only.
 	// https://www.html5rocks.com/en/tutorials/eventsource/basics/#toc-lastevent-id
-	lastEventID := req.Header.Get("Last-Event-ID")
-	if lastEventID != "" {
-		logrus.Debugf("Received `Last-Event-ID`: %s", lastEventID)
-		cursor = lastEventID
+	if stream {
+		lastEventID := req.Header.Get("Last-Event-ID")
+		if lastEventID != "" {
+			logrus.Debugf("Received `Last-Event-ID`: %s", lastEventID)
+			cursor = lastEventID
+		}
 	}
 
 	// create a journal reader instance with required options.
@@ -246,6 +248,13 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	// This feature can be used to tell whether we reached journal's top and/or bottom.
 	w.Header().Set("X-Journal-Skip-Next", strconv.FormatUint(j.SkippedNext, 10))
 	w.Header().Set("X-Journal-Skip-Prev", strconv.FormatUint(j.SkippedPrev, 10))
+
+	// Set response headers.
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Transfer-Encoding", "chunked")
+
 	if !stream {
 		b, err := io.Copy(w, j)
 		if err != nil {
@@ -257,9 +266,6 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		}
 		return
 	}
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	f := w.(http.Flusher)
 	notify := w.(http.CloseNotifier).CloseNotify()
