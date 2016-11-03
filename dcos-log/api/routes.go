@@ -46,7 +46,8 @@ func dispatchLogs(url string, stream bool) []router.Route {
 		},
 		{
 			formatter: reader.FormatSSE{
-				UseCursorID: true,
+				// only streaming allows id: <cursor> field
+				UseCursorID: stream,
 			},
 			headers: []string{"Accept", "text/event-stream"},
 		},
@@ -62,9 +63,9 @@ func dispatchLogs(url string, stream bool) []router.Route {
 
 func logRoutes() []router.Route {
 	logsRange := dispatchLogs("/logs", false)
-	containerLogsRange := dispatchLogs("/logs/container/{container_id}", false)
+	containerLogsRange := dispatchLogs("/logs/framework/{framework_id}/executor/{executor_id}/container/{container_id}", false)
 	logsStream := dispatchLogs("/stream", true)
-	containerLogsStream := dispatchLogs("/stream/container/{container_id}", true)
+	containerLogsStream := dispatchLogs("/stream/framework/{framework_id}/executor/{executor_id}/container/{container_id}", true)
 	extraRoutes := []router.Route{
 		{
 			URL:     "/fields/{field}",

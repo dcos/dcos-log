@@ -129,22 +129,42 @@ func getReadReverse(req *http.Request, stream bool) (bool, error) {
 	return strconv.ParseBool(readReverse)
 }
 
+func pathMatches(req *http.Request) []reader.JournalEntryMatch {
+	var matches []reader.JournalEntryMatch
+
+	// try to find container_id, framework_id and executor_id in request variables and apply
+	// appropriate matches.
+	for _, requestVar := range []struct{ fieldName, pathVar string }{
+		{
+			fieldName: "CONTAINER_ID",
+			pathVar:   "container_id",
+		},
+		{
+			fieldName: "FRAMEWORK_ID",
+			pathVar:   "framework_id",
+		},
+		{
+			fieldName: "EXECUTOR_ID",
+			pathVar:   "executor_id",
+		},
+	} {
+		value := mux.Vars(req)[requestVar.pathVar]
+		if value != "" {
+			matches = append(matches, reader.JournalEntryMatch{
+				Field: requestVar.fieldName,
+				Value: value,
+			})
+		}
+	}
+	return matches
+}
+
 // main handler.
 func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var matches []reader.JournalEntryMatch
-
-	// Try to find a container_id in url path.
-	containerID := mux.Vars(req)["container_id"]
-	if containerID != "" {
-		matches = []reader.JournalEntryMatch{
-			{
-				Field: "CONTAINER_ID",
-				Value: containerID,
-			},
-		}
-	}
+	// get a list of matches from request path
+	matches := pathMatches(req)
 
 	// Read `filter` parameters.
 	requestMatches, err := getMatches(req)
@@ -187,12 +207,14 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	}
 
 	// Last-Event-ID is a value that contains a cursor. If the header is in the request, we should take
-	// the value and override the cursor parameter.
+	// the value and override the cursor parameter. This will work for streaming endpoints only.
 	// https://www.html5rocks.com/en/tutorials/eventsource/basics/#toc-lastevent-id
-	lastEventID := req.Header.Get("Last-Event-ID")
-	if lastEventID != "" {
-		logrus.Debugf("Received `Last-Event-ID`: %s", lastEventID)
-		cursor = lastEventID
+	if stream {
+		lastEventID := req.Header.Get("Last-Event-ID")
+		if lastEventID != "" {
+			logrus.Debugf("Received `Last-Event-ID`: %s", lastEventID)
+			cursor = lastEventID
+		}
 	}
 
 	// create a journal reader instance with required options.
@@ -226,6 +248,13 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 	// This feature can be used to tell whether we reached journal's top and/or bottom.
 	w.Header().Set("X-Journal-Skip-Next", strconv.FormatUint(j.SkippedNext, 10))
 	w.Header().Set("X-Journal-Skip-Prev", strconv.FormatUint(j.SkippedPrev, 10))
+
+	// Set response headers.
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Transfer-Encoding", "chunked")
+
 	if !stream {
 		b, err := io.Copy(w, j)
 		if err != nil {
@@ -237,9 +266,6 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, e
 		}
 		return
 	}
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	f := w.(http.Flusher)
 	notify := w.(http.CloseNotifier).CloseNotify()
