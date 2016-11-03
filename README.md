@@ -2,10 +2,10 @@
 
 # REST API
 #### Endpoints:
-- `/logs` returns logs matching the request query and closes the connection.
-- `/logs/container/<container_id>` returns logs for a requested container. (Can be nested containers separated by a ".")
-- `/stream` tails logs keeping the connection opened, implements Server Sent Events.
-- `/stream/container/<container_id>` tails logs keeping the connection opened for a requested container. (Can be nested containers separated by a ".")
+- `/logs` get a range of logs matching the request query.
+- `/logs/framework/{framework_id}/executor/{executor_id}/container/{container_id}` get a range of application logs.
+- `/stream` tail logs keeping the connection opened, implements Server Sent Events.
+- `/stream/framework/{framework_id}/executor/{executor_id}/container/{container_id}` tail application logs.
 - `/fields/<field>` returns all possible unique values for a specific `<field>`.
 
 #### Request Header Accept
