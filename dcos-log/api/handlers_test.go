@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -235,16 +234,15 @@ func TestRangeServerSSEHandler(t *testing.T) {
 }
 
 func TestFieldsHandler(t *testing.T) {
-	uniqueString := generateRandomField(20)
-	for _, value := range []string{"A", "B", "C", "D"} {
-		err := journal.Send("TEST: "+uniqueString, journal.PriInfo, map[string]string{uniqueString: value})
-		if err != nil {
-			t.Fatal(err)
-		}
+	value := fmt.Sprintf("%d", time.Now().UnixNano())
+	err := journal.Send("TEST CONTAINER_ID", journal.PriInfo, map[string]string{"CONTAINER_ID": value})
+	if err != nil {
+		t.Fatal(err)
 	}
-	time.Sleep(time.Second)
 
-	w, err := newRequest("/fields/"+uniqueString, map[string]string{"Accept": "application/json"})
+	time.Sleep(time.Millisecond * 50)
+
+	w, err := newRequest("/fields/CONTAINER_ID", map[string]string{"Accept": "application/json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,17 +255,28 @@ func TestFieldsHandler(t *testing.T) {
 		t.Fatalf("Expect Content-Type: application/json. Got %s", header)
 	}
 
-	var values []string
-	if err := json.Unmarshal(w.Body.Bytes(), &values); err != nil {
+	var response []string
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(values) != 4 {
-		t.Fatalf("Expect 4 values. Got %d [%s]", len(values), values)
+	if len(response) == 0 {
+		t.Fatal("Expect CONTAINER_ID field")
 	}
 
-	if !contains(values, "A") || !contains(values, "B") || !contains(values, "C") || !contains(values, "D") {
-		t.Fatalf("Expect at least 4 values for JOURNALTEST field: A,B,C,D. Got %s", values)
+	if !contains(response, value) {
+		t.Fatalf("Expect CONTAINER_ID = %s.Got %s", value, response)
+	}
+}
+
+func TestFieldNotAllowed(t *testing.T) {
+	w, err := newRequest("/fields/MESSAGE", map[string]string{"Accept": "application/json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("Expect return code %d. Got %d", http.StatusBadRequest, w.Code)
 	}
 }
 
@@ -371,14 +380,4 @@ func contains(s []string, v string) bool {
 		}
 	}
 	return false
-}
-
-func generateRandomField(n int) string {
-	letters := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	s := make([]rune, n)
-	rand.Seed(time.Now().UnixNano())
-	for i := range s {
-		s[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(s)
 }
