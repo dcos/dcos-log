@@ -1,120 +1,57 @@
 package api
 
 import (
+	"context"
 	"net/http"
-	"net/http/pprof"
 
+	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"github.com/dcos/dcos-log/dcos-log/config"
-	"github.com/dcos/dcos-log/dcos-log/journal/reader"
-	"github.com/dcos/dcos-log/dcos-log/router"
 	"github.com/gorilla/mux"
 )
 
-func loadRoutes(cfg *config.Config) []router.Route {
-	routes := logRoutes()
+type key int
 
-	if cfg.FlagDebug {
-		routes = append(routes, debugRoutes()...)
-	}
+var streamKey key = 1
 
-	return routes
+func requestStreamKeyFromContext(ctx context.Context) bool {
+	ctxValue := ctx.Value(streamKey)
+	return ctxValue != nil
 }
 
-func decorateHandler(stream bool, formatter reader.EntryFormatter) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		readJournalHandler(w, req, stream, formatter)
+func newAPIRouter(cfg *config.Config, client *http.Client, nodeInfo nodeutil.NodeInfo) (*mux.Router, error) {
+	newAuthMiddleware := func(h http.Handler) http.Handler {
+		return h
 	}
-}
 
-func dispatchLogs(url string, stream bool) []router.Route {
-	var routes []router.Route
-	for _, r := range []struct {
-		headers   []string
-		formatter reader.EntryFormatter
-	}{
-		{
-			formatter: reader.FormatText{},
-			headers:   []string{"Accept", "text/(plain|html)"},
-		},
-		{
-			formatter: reader.FormatText{},
-			headers:   []string{"Accept", "\\*/\\*"},
-		},
-		{
-			formatter: reader.FormatJSON{},
-			headers:   []string{"Accept", "application/json"},
-		},
-		{
-			formatter: reader.FormatSSE{
-				// only streaming allows id: <cursor> field
-				UseCursorID: stream,
-			},
-			headers: []string{"Accept", "text/event-stream"},
-		},
-	} {
-		routes = append(routes, router.Route{
-			URL:     url,
-			Handler: decorateHandler(stream, r.formatter),
-			Headers: r.headers,
+	if cfg.FlagAuth {
+		newAuthMiddleware = func(h http.Handler) http.Handler {
+			return authMiddleware(h, client, nodeInfo)
+		}
+	}
+
+	streamMiddleware := func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ctx := context.WithValue(context.Background(), streamKey, struct{}{})
+			h.ServeHTTP(w, req.WithContext(ctx))
 		})
 	}
-	return routes
-}
 
-func logRoutes() []router.Route {
-	logsRange := dispatchLogs("/logs", false)
-	containerLogsRange := dispatchLogs("/logs/framework/{framework_id}/executor/{executor_id}/container/{container_id}", false)
-	logsStream := dispatchLogs("/stream", true)
-	containerLogsStream := dispatchLogs("/stream/framework/{framework_id}/executor/{executor_id}/container/{container_id}", true)
-	extraRoutes := []router.Route{
-		{
-			URL:     "/fields/{field}",
-			Handler: fieldHandler,
-		},
-	}
+	handler := http.HandlerFunc(readJournalHandler)
 
-	// build all routes
-	var routes []router.Route
-	for _, r := range [][]router.Route{logsRange, containerLogsRange, logsStream, containerLogsStream, extraRoutes} {
-		routes = append(routes, r...)
-	}
-	return routes
-}
+	r := mux.NewRouter()
+	logsRange := r.PathPrefix("/logs").Subrouter()
+	logsRange.Path("/").Handler(handler)
+	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
+		Handler(newAuthMiddleware(handler))
 
-func debugRoutes() []router.Route {
-	return []router.Route{
-		{
-			URL:     "/debug/pprof/",
-			Handler: pprof.Index,
-			Gzip:    true,
-		},
-		{
-			URL:     "/debug/pprof/cmdline",
-			Handler: pprof.Cmdline,
-			Gzip:    true,
-		},
-		{
-			URL:     "/debug/pprof/profile",
-			Handler: pprof.Profile,
-			Gzip:    true,
-		},
-		{
-			URL:     "/debug/pprof/symbol",
-			Handler: pprof.Symbol,
-			Gzip:    true,
-		},
-		{
-			URL:     "/debug/pprof/trace",
-			Handler: pprof.Trace,
-			Gzip:    true,
-		},
-		{
-			URL: "/debug/pprof/{profile}",
-			Handler: func(w http.ResponseWriter, req *http.Request) {
-				profile := mux.Vars(req)["profile"]
-				pprof.Handler(profile).ServeHTTP(w, req)
-			},
-			Gzip: true,
-		},
-	}
+	logsStream := r.PathPrefix("/stream").Subrouter()
+	logsStream.Path("/").Handler(streamMiddleware(handler))
+	logsStream.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
+		Handler(newAuthMiddleware(handler))
+
+	// /field/{field} route
+	fields := r.PathPrefix("/fields").Subrouter()
+	fields.Path("/{field}").HandlerFunc(fieldHandler)
+
+	return r, nil
 }

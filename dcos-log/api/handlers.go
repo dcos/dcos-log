@@ -160,7 +160,10 @@ func pathMatches(req *http.Request) []reader.JournalEntryMatch {
 }
 
 // main handler.
-func readJournalHandler(w http.ResponseWriter, req *http.Request, stream bool, entryFormatter reader.EntryFormatter) {
+func readJournalHandler(w http.ResponseWriter, req *http.Request) {
+	stream := requestStreamKeyFromContext(req.Context())
+
+	entryFormatter := reader.NewEntryFormatter(req.Header.Get("Accept"))
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// get a list of matches from request path

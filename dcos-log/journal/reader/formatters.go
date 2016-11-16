@@ -23,6 +23,19 @@ var (
 	ContentTypeEventStream ContentType = "text/event-stream"
 )
 
+// NewEntryFormatter returns a new implementation of EntryFormatter corresponding to a given content type.
+func NewEntryFormatter(s string) EntryFormatter {
+	if s == ContentTypeApplicationJSON.String() {
+		return &FormatJSON{}
+	}
+
+	if s == ContentTypeEventStream.String() {
+		return &FormatSSE{}
+	}
+
+	return &FormatText{}
+}
+
 // String returns a string representation of type "ContentType"
 func (c ContentType) String() string {
 	return string(c)
@@ -46,11 +59,11 @@ func (j FormatText) GetContentType() ContentType {
 }
 
 // FormatEntry formats sdjournal.JournalEntry to a text log line.
-func (j FormatText) FormatEntry(entry *sdjournal.JournalEntry) (entryBytes []byte, err error) {
+func (j FormatText) FormatEntry(entry *sdjournal.JournalEntry) ([]byte, error) {
 	// return empty if field MESSAGE not found
 	message, ok := entry.Fields["MESSAGE"]
 	if !ok {
-		return entryBytes, nil
+		return nil, nil
 	}
 
 	// text format: "date _HOSTNAME SYSLOG_IDENTIFIER[_PID]: MESSAGE
