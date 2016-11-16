@@ -17,11 +17,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type getParam string
-
-func (g getParam) String() string {
-	return string(g)
-}
+// AllowedFields contain `Journald Container Logger module` fields except ExecutorInfo.
+// https://github.com/dcos/dcos-mesos-modules/blob/master/journald/README.md#journald-container-logger-module
+var AllowedFields = []string{"FRAMEWORK_ID", "AGENT_ID", "EXECUTOR_ID", "CONTAINER_ID", "STREAM"}
 
 // Constants used as request valid GET parameters. All other parameter is ignored.
 const (
@@ -32,6 +30,12 @@ const (
 	getParamCursor      getParam = "cursor"
 	getParamReadReverse getParam = "read_reverse"
 )
+
+type getParam string
+
+func (g getParam) String() string {
+	return string(g)
+}
 
 func httpError(w http.ResponseWriter, msg string, code int, req *http.Request) {
 	debugString := fmt.Sprintf("Message: %s [request URI: %s; remote address: %s; Accept: %s; Proto: %s]", msg,
@@ -292,6 +296,21 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 
 func fieldHandler(w http.ResponseWriter, req *http.Request) {
 	field := mux.Vars(req)["field"]
+
+	// validate that we are allowed to get values for requested field.
+	err := func() error {
+		for _, validField := range AllowedFields {
+			if validField == field {
+				return nil
+			}
+		}
+		return fmt.Errorf("%s is not an allowed field", field)
+	}()
+	if err != nil {
+		httpError(w, err.Error(), http.StatusBadRequest, req)
+		return
+	}
+
 	j, err := reader.NewReader(nil)
 	if err != nil {
 		httpError(w, err.Error(), http.StatusBadRequest, req)
