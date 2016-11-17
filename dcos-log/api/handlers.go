@@ -167,7 +167,8 @@ func pathMatches(req *http.Request) []reader.JournalEntryMatch {
 func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 	stream := requestStreamKeyFromContext(req.Context())
 
-	entryFormatter := reader.NewEntryFormatter(req.Header.Get("Accept"))
+	// for streaming endpoints and SSE logs format we include id: CursorID before each log entry.
+	entryFormatter := reader.NewEntryFormatter(req.Header.Get("Accept"), stream)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// get a list of matches from request path

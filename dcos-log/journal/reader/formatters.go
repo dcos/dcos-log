@@ -24,13 +24,15 @@ var (
 )
 
 // NewEntryFormatter returns a new implementation of EntryFormatter corresponding to a given content type.
-func NewEntryFormatter(s string) EntryFormatter {
+func NewEntryFormatter(s string, useCursorID bool) EntryFormatter {
 	if s == ContentTypeApplicationJSON.String() {
 		return &FormatJSON{}
 	}
 
 	if s == ContentTypeEventStream.String() {
-		return &FormatSSE{}
+		return &FormatSSE{
+			UseCursorID: useCursorID,
+		}
 	}
 
 	return &FormatText{}
