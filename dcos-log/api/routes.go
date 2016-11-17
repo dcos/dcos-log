@@ -39,7 +39,7 @@ func newAPIRouter(cfg *config.Config, client *http.Client, nodeInfo nodeutil.Nod
 	handler := http.HandlerFunc(readJournalHandler)
 
 	r := mux.NewRouter()
-	logsRange := r.PathPrefix("/logs").Subrouter()
+	logsRange := r.PathPrefix("/range").Subrouter()
 	logsRange.Path("/").Handler(handler)
 	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
 		Handler(newAuthMiddleware(handler))
