@@ -157,7 +157,7 @@ func TestGetMatches(t *testing.T) {
 }
 
 func TestRangeServerTextHandler(t *testing.T) {
-	w, err := newRequest("/logs/?skip_prev=11", map[string]string{"Accept": "text/plain"})
+	w, err := newRequest("/range/?skip_prev=11", map[string]string{"Accept": "text/plain"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestRangeServerTextHandler(t *testing.T) {
 }
 
 func TestRangeServerJSONHandler(t *testing.T) {
-	w, err := newRequest("/logs/?limit=10", map[string]string{"Accept": "application/json"})
+	w, err := newRequest("/range/?limit=10", map[string]string{"Accept": "application/json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestRangeServerJSONHandler(t *testing.T) {
 }
 
 func TestRangeServerSSEHandler(t *testing.T) {
-	w, err := newRequest("/logs/?limit=10", map[string]string{"Accept": "text/event-stream"})
+	w, err := newRequest("/range/?limit=10", map[string]string{"Accept": "text/event-stream"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,7 +296,7 @@ func TestContainerLogs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	url := fmt.Sprintf("/logs/framework/%s/executor/%s/container/%s", frameworkID, executorID, containerID)
+	url := fmt.Sprintf("/range/framework/%s/executor/%s/container/%s", frameworkID, executorID, containerID)
 	w, err := newRequest(url, map[string]string{"Accept": "application/json"})
 	if err != nil {
 		t.Fatal(err)
