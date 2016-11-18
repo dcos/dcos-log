@@ -31,7 +31,7 @@ func newAPIRouter(cfg *config.Config, client *http.Client, nodeInfo nodeutil.Nod
 
 	streamMiddleware := func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			ctx := context.WithValue(context.Background(), streamKey, struct{}{})
+			ctx := context.WithValue(req.Context(), streamKey, struct{}{})
 			h.ServeHTTP(w, req.WithContext(ctx))
 		})
 	}
@@ -47,7 +47,7 @@ func newAPIRouter(cfg *config.Config, client *http.Client, nodeInfo nodeutil.Nod
 	logsStream := r.PathPrefix("/stream").Subrouter()
 	logsStream.Path("/").Handler(streamMiddleware(handler))
 	logsStream.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
-		Handler(newAuthMiddleware(handler))
+		Handler(newAuthMiddleware(streamMiddleware(handler)))
 
 	// /field/{field} route
 	fields := r.PathPrefix("/fields").Subrouter()
