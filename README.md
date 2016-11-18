@@ -2,9 +2,9 @@
 
 # REST API
 #### Endpoints:
-- `/logs` get a range of logs matching the request query.
-- `/logs/framework/{framework_id}/executor/{executor_id}/container/{container_id}` get a range of application logs.
-- `/stream` tail logs keeping the connection opened, implements Server Sent Events.
+- `/range/` get a range of logs matching the request query.
+- `/range/framework/{framework_id}/executor/{executor_id}/container/{container_id}` get a range of application logs.
+- `/stream/` tail logs keeping the connection opened, implements Server Sent Events.
 - `/stream/framework/{framework_id}/executor/{executor_id}/container/{container_id}` tail application logs.
 - `/fields/<field>` returns all possible unique values for a specific `<field>`.
 
@@ -75,20 +75,20 @@ Usage of dcos-log:
 
 # Examples:
 #### GET parameters
-- `/stream?skip_prev=11` get the last 10 entires from the journal and follow new events.
-- `/logs?skip_next=100&limit=10` skip 100 entries from the beggining of the journal and return 10 following entries.
+- `/stream/?skip_prev=11` get the last 10 entires from the journal and follow new events.
+- `/range/?skip_next=100&limit=10` skip 100 entries from the beggining of the journal and return 10 following entries.
 - `/stream?cursor=s%3Dcea8150abb0543deaab113ed2f39b014%3Bi%3D1%3Bb%3D2c357020b6e54863a5ac9dee71d5872c%3Bm%3D33ae8a1%3Bt%3D53e52ec99a798%3Bx%3Db3fe26128f768a49` get all logs after the specific cursor and follow new events.
-- `/logs?cursor=s%3Dcea8150abb0543deaab113ed2f39b014%3Bi%3D1%3Bb%3D2c357020b6e54863a5ac9dee71d5872c%3Bm%3D33ae8a1%3Bt%3D53e52ec99a798%3Bx%3Db3fe26128f768a49&skip_prev=2&limit=2` get 2 entries. The first one is the one before the cursor position and the second one is the entry with given cursor position.
+- `/range/?cursor=s%3Dcea8150abb0543deaab113ed2f39b014%3Bi%3D1%3Bb%3D2c357020b6e54863a5ac9dee71d5872c%3Bm%3D33ae8a1%3Bt%3D53e52ec99a798%3Bx%3Db3fe26128f768a49&skip_prev=2&limit=2` get 2 entries. The first one is the one before the cursor position and the second one is the entry with given cursor position.
 
 #### Accept: text/plain
 ```
-curl -H 'Accept: text/plain' '127.0.0.1:8080/logs?skip_prev=200&limit=1'
+curl -H 'Accept: text/plain' '127.0.0.1:8080/range/?skip_prev=200&limit=1'
 Wed Oct 12 06:28:20 2016 a60c1d059aea systemd [1] Starting Daily Cleanup of Temporary Directories.
 ```
 
 #### Accept: application/json
 ```
-curl -H 'Accept: application/json' '127.0.0.1:8080/logs?skip_prev=200&limit=1' | jq '.'
+curl -H 'Accept: application/json' '127.0.0.1:8080/range/?skip_prev=200&limit=1' | jq '.'
 {
   "fields": {
     "CODE_FILE": "../src/core/unit.c",
@@ -122,7 +122,7 @@ curl -H 'Accept: application/json' '127.0.0.1:8080/logs?skip_prev=200&limit=1' |
 
 #### Accept: text/event-stream
 ```
-curl -H 'Accept: text/event-stream' '127.0.0.1:8080/logs?skip_prev=200&limit=1'
+curl -H 'Accept: text/event-stream' '127.0.0.1:8080/range/?skip_prev=200&limit=1'
 id: s=f78aeb5184144e2a94963a42b0cac49e;i=262;b=637573ba91ae4008b58eaa9505a11f86;m=6fbb8f76b;t=53ea51966297e
 data: {"fields":{"CODE_FILE":"../src/core/unit.c","CODE_FUNCTION":"unit_status_log_starting_stopping_reloading","CODE_LINE":"1272","MESSAGE":"Starting Daily Cleanup of Temporary Directories.","MESSAGE_ID":"7d4958e842da4a758f6c1cdc7b36dcc5","PRIORITY":"6","SYSLOG_FACILITY":"3","SYSLOG_IDENTIFIER":"systemd","UNIT":"systemd-tmpfiles-clean.timer","_BOOT_ID":"637573ba91ae4008b58eaa9505a11f86","_CAP_EFFECTIVE":"3fffffffff","_CMDLINE":"/sbin/init","_COMM":"systemd","_EXE":"/lib/systemd/systemd","_GID":"0","_HOSTNAME":"a60c1d059aea","_MACHINE_ID":"48230110dd084e91b7b6885728b98295","_PID":"1","_SOURCE_REALTIME_TIMESTAMP":"1476253700204523","_SYSTEMD_CGROUP":"e","_TRANSPORT":"journal","_UID":"0"},"cursor":"s=f78aeb5184144e2a94963a42b0cac49e;i=262;b=637573ba91ae4008b58eaa9505a11f86;m=6fbb8f76b;t=53ea51966297e;x=69cba0539a7e4576","monotonic_timestamp":29993006955,"realtime_timestamp":1476253700204926}
 ```
