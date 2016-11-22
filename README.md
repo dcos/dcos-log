@@ -14,7 +14,7 @@
 - `text/event-stream` request logs in Server-Sent-Events format.
 
 #### Request Header Last-Event-ID
-If `Last-Event-ID` is set dcos-log will use it as a cursor position.
+If `Last-Event-ID` is set dcos-log will use it as a cursor position. `Last-Event-ID` header works with `/stream/` endpoints only.
 
 NOTE: Accept header `text/event-stream` cannot be used with `/fields/<field>` endpoint.
 
@@ -50,9 +50,8 @@ where
 
 NOTE:
 - It is possbile to move to the tail of the journal. If the `?cursor` parameter is not used then we consider the cursor
-  is pointing to a head of the journal. `?skip_prev=1` can be used to move to the tail of the journal. `?skip_prev=2`
-  means we want to read the last journal entry. If you need to read last 10 entries you should use `?skip_prev=11`.
-- Parameter `?limit` cannot be used with `/stream` endpoint.
+  is pointing to a head of the journal. `?skip_prev=1` can be used to move to the tail of the journal (very last entry). If you need to read last 10 entries you should use `?skip_prev=10`.
+- Parameter `?limit` cannot be used with `/stream/` endpoint.
 
 #### Response codes:
 - `200` OK.
@@ -75,9 +74,9 @@ Usage of dcos-log:
 
 # Examples:
 #### GET parameters
-- `/stream/?skip_prev=11` get the last 10 entires from the journal and follow new events.
+- `/stream/?skip_prev=10` get the last 10 entires from the journal and follow new events.
 - `/range/?skip_next=100&limit=10` skip 100 entries from the beggining of the journal and return 10 following entries.
-- `/stream?cursor=s%3Dcea8150abb0543deaab113ed2f39b014%3Bi%3D1%3Bb%3D2c357020b6e54863a5ac9dee71d5872c%3Bm%3D33ae8a1%3Bt%3D53e52ec99a798%3Bx%3Db3fe26128f768a49` get all logs after the specific cursor and follow new events.
+- `/stream/?cursor=s%3Dcea8150abb0543deaab113ed2f39b014%3Bi%3D1%3Bb%3D2c357020b6e54863a5ac9dee71d5872c%3Bm%3D33ae8a1%3Bt%3D53e52ec99a798%3Bx%3Db3fe26128f768a49` get all logs after the specific cursor and follow new events.
 - `/range/?cursor=s%3Dcea8150abb0543deaab113ed2f39b014%3Bi%3D1%3Bb%3D2c357020b6e54863a5ac9dee71d5872c%3Bm%3D33ae8a1%3Bt%3D53e52ec99a798%3Bx%3Db3fe26128f768a49&skip_prev=2&limit=2` get 2 entries. The first one is the one before the cursor position and the second one is the entry with given cursor position.
 
 #### Accept: text/plain
