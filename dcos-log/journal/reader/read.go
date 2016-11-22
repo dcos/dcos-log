@@ -52,6 +52,8 @@ type Reader struct {
 
 	msgReader        *bytes.Reader
 	contentFormatter EntryFormatter
+	// n represents the number of logs read.
+	n uint64
 }
 
 // SkipNext skips a journal by n entries forward.
@@ -105,23 +107,37 @@ func (r *Reader) Read(b []byte) (int, error) {
 		}
 
 		var (
-			c   uint64
-			err error
+			c        uint64
+			err      error
+			skipRead bool
 		)
-		// advance the journal cursor. It has to be called at least one time
-		// before reading
-		if r.ReadReverse {
-			c, err = r.Journal.Previous()
-		} else {
-			c, err = r.Journal.Next()
-		}
-		if err != nil {
-			return 0, err
+		// The problem here is the following. When we read the journal for the first time we have to advance
+		// the cursor to read the very first entry. However when we move the cursor backwards with skip option
+		// `OptionSkipPrev` the cursor will be pointing to an actual entry which we want to read. In this case
+		// we have to be aware how many entries we already read and whether we can read the current cursor.
+
+		// only check if we need to move the cursor for the first time.
+		if r.n == 0 {
+			// if we can read the cursor without errors we should NOT advance the cursor for the first time.
+			if _, err = r.Journal.GetCursor(); err == nil {
+				skipRead = true
+			}
 		}
 
-		// EOF detection
-		if c == 0 {
-			return 0, io.EOF
+		if !skipRead {
+			if r.ReadReverse {
+				c, err = r.Journal.Previous()
+			} else {
+				c, err = r.Journal.Next()
+			}
+			if err != nil {
+				return 0, err
+			}
+
+			// EOF detection
+			if c == 0 {
+				return 0, io.EOF
+			}
 		}
 
 		if r.contentFormatter == nil {
@@ -145,6 +161,8 @@ func (r *Reader) Read(b []byte) (int, error) {
 		if r.UseLimit && r.Limit > 0 {
 			r.Limit--
 		}
+
+		r.n++
 	}
 
 	var sz int

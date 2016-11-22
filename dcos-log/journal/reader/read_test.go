@@ -151,13 +151,13 @@ func TestJournalSkipForward(t *testing.T) {
 		if !ok {
 			t.Fatalf("Field MESSAGE not found. Got: %v", r)
 		}
-		expectedString := fmt.Sprintf("index-%d", size+1)
+		expectedString := fmt.Sprintf("index-%d", size)
 		if value != expectedString {
 			t.Fatalf("Expected: %s. Got %s", expectedString, value)
 		}
 		size++
 	}
-	if size != 3 {
-		t.Fatalf("Must have 3 entries. Got %d", size)
+	if size != 4 {
+		t.Fatalf("Must have 4 entries. Got %d", size)
 	}
 }

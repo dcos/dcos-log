@@ -157,7 +157,7 @@ func TestGetMatches(t *testing.T) {
 }
 
 func TestRangeServerTextHandler(t *testing.T) {
-	w, err := newRequest("/range/?skip_prev=11", map[string]string{"Accept": "text/plain"})
+	w, err := newRequest("/range/?skip_prev=10", map[string]string{"Accept": "text/plain"})
 	if err != nil {
 		t.Fatal(err)
 	}
