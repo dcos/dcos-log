@@ -117,10 +117,16 @@ func (r *Reader) Read(b []byte) (int, error) {
 		// we have to be aware how many entries we already read and whether we can read the current cursor.
 
 		// only check if we need to move the cursor for the first time.
+		// if user used a specific cursor in the request we should check if we are pointing to it.
+		// if we are, we should not read the same entry and move to the next one.
 		if r.n == 0 {
 			// if we can read the cursor without errors we should NOT advance the cursor for the first time.
-			if _, err = r.Journal.GetCursor(); err == nil {
-				skipRead = true
+			// However, if the user provided a cursor in the request, we should not read, we have to move on
+			// to the next.
+			if cursor, err := r.Journal.GetCursor(); err == nil {
+				if cursor != r.Cursor {
+					skipRead = true
+				}
 			}
 		}
 
