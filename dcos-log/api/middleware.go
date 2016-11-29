@@ -1,14 +1,17 @@
 package api
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
@@ -168,5 +171,40 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+// Gzip Compression
+type gzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+}
+
+func (w gzipResponseWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+func downloadGzippedContentMiddleware(next http.Handler, prefix string, vars ...string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// log name lazy evaluation
+		filenameParts := []string{prefix}
+		muxVars := mux.Vars(r)
+		for _, v := range vars {
+			if muxVar := muxVars[v]; muxVar != "" {
+				filenameParts = append(filenameParts, muxVar)
+			}
+		}
+
+		filename := strings.Join(filenameParts, "-")
+		if filename == "" {
+			filename = "download"
+		}
+
+		f := fmt.Sprintf("%s-%d.log.gz", filename, time.Now().UnixNano())
+		w.Header().Add("Content-disposition", "attachment; filename="+f)
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		gzw := gzipResponseWriter{Writer: gz, ResponseWriter: w}
+		next.ServeHTTP(gzw, r)
 	})
 }

@@ -157,7 +157,7 @@ func TestGetMatches(t *testing.T) {
 }
 
 func TestRangeServerTextHandler(t *testing.T) {
-	w, err := newRequest("/range/?skip_prev=10", map[string]string{"Accept": "text/plain"})
+	w, err := newRequest("/range/?skip_prev=10", map[string]string{"Accept": "text/plain"}, "GET")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestRangeServerTextHandler(t *testing.T) {
 }
 
 func TestRangeServerJSONHandler(t *testing.T) {
-	w, err := newRequest("/range/?limit=10", map[string]string{"Accept": "application/json"})
+	w, err := newRequest("/range/?limit=10", map[string]string{"Accept": "application/json"}, "GET")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestRangeServerJSONHandler(t *testing.T) {
 }
 
 func TestRangeServerSSEHandler(t *testing.T) {
-	w, err := newRequest("/range/?limit=10", map[string]string{"Accept": "text/event-stream"})
+	w, err := newRequest("/range/?limit=10", map[string]string{"Accept": "text/event-stream"}, "GET")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +242,7 @@ func TestFieldsHandler(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 50)
 
-	w, err := newRequest("/fields/CONTAINER_ID", map[string]string{"Accept": "application/json"})
+	w, err := newRequest("/fields/CONTAINER_ID", map[string]string{"Accept": "application/json"}, "GET")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestFieldsHandler(t *testing.T) {
 }
 
 func TestFieldNotAllowed(t *testing.T) {
-	w, err := newRequest("/fields/MESSAGE", map[string]string{"Accept": "application/json"})
+	w, err := newRequest("/fields/MESSAGE", map[string]string{"Accept": "application/json"}, "GET")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +297,7 @@ func TestContainerLogs(t *testing.T) {
 	}
 
 	url := fmt.Sprintf("/range/framework/%s/executor/%s/container/%s", frameworkID, executorID, containerID)
-	w, err := newRequest(url, map[string]string{"Accept": "application/json"})
+	w, err := newRequest(url, map[string]string{"Accept": "application/json"}, "GET")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -345,7 +345,7 @@ func TestContainerLogs(t *testing.T) {
 	}
 }
 
-func newRequest(path string, headers map[string]string) (*httptest.ResponseRecorder, error) {
+func newRequest(path string, headers map[string]string, method string) (*httptest.ResponseRecorder, error) {
 	w := &httptest.ResponseRecorder{}
 
 	cfg, err := config.NewConfig([]string{"dcos-log"})
@@ -358,7 +358,7 @@ func newRequest(path string, headers map[string]string) (*httptest.ResponseRecor
 		return w, err
 	}
 
-	req, err := http.NewRequest("GET", path, nil)
+	req, err := http.NewRequest(method, path, nil)
 	if err != nil {
 		return w, err
 	}
@@ -380,4 +380,19 @@ func contains(s []string, v string) bool {
 		}
 	}
 	return false
+}
+
+func TestDownloadHandler(t *testing.T) {
+	w, err := newRequest("/range/", map[string]string{"Accept": "application/json"}, "POST")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expect return code 200. Got %d", w.Code)
+	}
+
+	if h := w.Header().Get("Content-disposition"); h == "" {
+		t.Fatalf("Expect header `Content-disposition`")
+	}
 }

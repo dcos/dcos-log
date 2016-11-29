@@ -39,15 +39,21 @@ func newAPIRouter(cfg *config.Config, client *http.Client, nodeInfo nodeutil.Nod
 	handler := http.HandlerFunc(readJournalHandler)
 
 	r := mux.NewRouter()
+	// GET
 	logsRange := r.PathPrefix("/range").Subrouter()
-	logsRange.Path("/").Handler(handler)
+	logsRange.Path("/").Handler(handler).Methods("GET")
 	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
-		Handler(newAuthMiddleware(handler))
+		Handler(newAuthMiddleware(handler)).Methods("GET")
+
+	// POST added download headers
+	logsRange.Path("/").Handler(downloadGzippedContentMiddleware(handler, "root-range")).Methods("POST")
+	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
+		Handler(newAuthMiddleware(downloadGzippedContentMiddleware(handler, "app", "container_id"))).Methods("POST")
 
 	logsStream := r.PathPrefix("/stream").Subrouter()
-	logsStream.Path("/").Handler(streamMiddleware(handler))
+	logsStream.Path("/").Handler(streamMiddleware(handler)).Methods("GET")
 	logsStream.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
-		Handler(newAuthMiddleware(streamMiddleware(handler)))
+		Handler(newAuthMiddleware(streamMiddleware(handler))).Methods("GET")
 
 	// /field/{field} route
 	fields := r.PathPrefix("/fields").Subrouter()
