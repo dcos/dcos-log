@@ -222,6 +222,11 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 		if lastEventID != "" {
 			logrus.Debugf("Received `Last-Event-ID`: %s", lastEventID)
 			cursor = lastEventID
+
+			// if the browser sends `Last-Event-ID` we have to null skipPrev and skipNext counters
+			// since we don't want to see duplicate log entries.
+			skipPrev = 0
+			skipNext = 0
 		}
 	}
 
