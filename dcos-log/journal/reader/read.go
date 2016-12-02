@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/coreos/go-systemd/sdjournal"
 )
@@ -50,6 +51,7 @@ type Reader struct {
 	SkippedNext, SkippedPrev uint64
 	ReadReverse              bool
 
+	eofTime          time.Time
 	msgReader        *bytes.Reader
 	contentFormatter EntryFormatter
 	// n represents the number of logs read.
@@ -142,9 +144,25 @@ func (r *Reader) Read(b []byte) (int, error) {
 
 			// EOF detection
 			if c == 0 {
+				// for server sent events content type some proxies may close connection
+				// after a short timeout. We are going to send a ping comment every 15 seconds
+				// if no data available. This will ensure the connection is kept alive and
+				// nginx will not drop it with `Connection timed out` error.
+				// https://html.spec.whatwg.org/multipage/comms.html
+				if r.contentFormatter.GetContentType() == ContentTypeEventStream {
+					if time.Since(r.eofTime) < time.Duration(time.Second*15) {
+						return 0, io.EOF
+					}
+
+					r.msgReader = bytes.NewReader([]byte(": ping\n\n"))
+					r.eofTime = time.Now()
+					goto reader
+				}
 				return 0, io.EOF
 			}
 		}
+		// update the timer indicating we are not idling
+		r.eofTime = time.Now()
 
 		if r.contentFormatter == nil {
 			return 0, ErrUninitializedReader
@@ -171,6 +189,7 @@ func (r *Reader) Read(b []byte) (int, error) {
 		r.n++
 	}
 
+reader:
 	var sz int
 	sz, err := r.msgReader.Read(b)
 	if err == io.EOF {
