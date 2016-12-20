@@ -6,30 +6,34 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/activation"
+	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
-	"github.com/dcos/dcos-go/jwt/transport"
 	"github.com/dcos/dcos-log/dcos-log/config"
 )
 
-func newNodeInfo(cfg *config.Config, clientWithJWT http.Client) (nodeutil.NodeInfo, error) {
+// override the defaultStateURL to use https scheme
+var defaultStateURL = url.URL{
+	Scheme: "https",
+	Host:   net.JoinHostPort(dcos.DNSRecordLeader, strconv.Itoa(dcos.PortMesosMaster)),
+	Path:   "/state",
+}
+
+func newNodeInfo(cfg *config.Config, client *http.Client) (nodeutil.NodeInfo, error) {
 	if !cfg.FlagAuth {
 		return nil, nil
 	}
 
-	rt, err := transport.NewRoundTripper(clientWithJWT.Transport, transport.OptionReadIAMConfig(cfg.FlagIAMConfig))
-	if err != nil {
-		return nil, fmt.Errorf("Unable to create secure JWT transport. -iam-config must be used with -auth: %s", err)
-	}
-
-	clientWithJWT.Transport = rt
-
-	nodeInfo, err := nodeutil.NewNodeInfo(&clientWithJWT)
+	// if auth is enabled we will also make requests to mesos via https.
+	nodeInfo, err := nodeutil.NewNodeInfo(client, nodeutil.OptionMesosStateURL(defaultStateURL.String()))
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +97,7 @@ func StartServer(cfg *config.Config) error {
 	}
 
 	// pass a copy of client because newNodeInfo may modify Transport.
-	nodeInfo, err := newNodeInfo(cfg, *client)
+	nodeInfo, err := newNodeInfo(cfg, client)
 	if err != nil {
 		return err
 	}
