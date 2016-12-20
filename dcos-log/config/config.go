@@ -38,9 +38,6 @@ var internalJSONValidationSchema = `
 	    "ca-cert": {
 	      "type": "string"
 	    },
-	    "iam-config": {
-	      "type": "string"
-	    },
 	    "timeout": {
 	      "type": "string"
 	    }
@@ -65,9 +62,6 @@ type Config struct {
 	// FlagCACertFile is a path to CA certificate.
 	FlagCACertFile string `json:"ca-cert"`
 
-	// FlagIAMConfig is a path to iam config file.
-	FlagIAMConfig string `json:"iam-config"`
-
 	// FlagGetRequestTimeout sets a timeout for Get requests used in authorization.
 	FlagGetRequestTimeout string `json:"timeout"`
 }
@@ -78,7 +72,6 @@ func (c *Config) setFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.FlagConfig, "config", c.FlagConfig, "Use config file.")
 	fs.BoolVar(&c.FlagAuth, "auth", c.FlagAuth, "Enable authorization.")
 	fs.StringVar(&c.FlagCACertFile, "ca-cert", c.FlagCACertFile, "Use certificate authority.")
-	fs.StringVar(&c.FlagIAMConfig, "iam-config", c.FlagIAMConfig, "Use iam config.")
 	fs.StringVar(&c.FlagGetRequestTimeout, "timeout", c.FlagGetRequestTimeout, "GET request timeout.")
 }
 

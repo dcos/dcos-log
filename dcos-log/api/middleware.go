@@ -137,7 +137,10 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 			return
 		}
 
-		mesosID, err := nodeInfo.MesosID(nil)
+		header := http.Header{}
+		header.Set("Authorization", token)
+
+		mesosID, err := nodeInfo.MesosID(nodeutil.NewContextWithHeaders(nil, header))
 		if err != nil {
 			httpError(w, "Unable to get mesosID: "+err.Error(), http.StatusInternalServerError, r)
 			return
