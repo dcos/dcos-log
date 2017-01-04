@@ -3,7 +3,6 @@ package reader
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/coreos/go-systemd/sdjournal"
@@ -68,27 +67,12 @@ func (j FormatText) FormatEntry(entry *sdjournal.JournalEntry) ([]byte, error) {
 		return nil, nil
 	}
 
-	// text format: "date _HOSTNAME SYSLOG_IDENTIFIER[_PID]: MESSAGE
 	// entry.RealtimeTimestamp returns a unix time in microseconds
 	// https://www.freedesktop.org/software/systemd/man/sd_journal_get_realtime_usec.html
-	l := logTextEntry{}
 	t := time.Unix(int64(entry.RealtimeTimestamp)/1000000, 0)
-	l.Add(t.Format(time.ANSIC))
+	line := []byte(fmt.Sprintf("%s: %s\n", t.Format("2006-01-02 15:04:05"), message))
 
-	if hostname, ok := entry.Fields["_HOSTNAME"]; ok {
-		l.Add(hostname)
-	}
-
-	if syslogID, ok := entry.Fields["SYSLOG_IDENTIFIER"]; ok {
-		l.Add(syslogID)
-	}
-
-	if pid, ok := entry.Fields["_PID"]; ok {
-		l.Add("[" + pid + "]")
-	}
-
-	l.Add(message)
-	return l.ToBytes(), nil
+	return line, nil
 }
 
 // FormatJSON implements EntryFormatter for json logs.
@@ -156,19 +140,4 @@ func marshalJournalEntry(entry *sdjournal.JournalEntry) ([]byte, error) {
 	}
 
 	return json.Marshal(formattedEntry)
-}
-
-// helper function to build a log line from array of strings.
-type logTextEntry []string
-
-func (l *logTextEntry) Add(s string) {
-	*l = append(*l, s)
-}
-
-func (l *logTextEntry) String() string {
-	return strings.Join(*l, " ") + "\n"
-}
-
-func (l *logTextEntry) ToBytes() []byte {
-	return []byte(l.String())
 }

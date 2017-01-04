@@ -383,7 +383,7 @@ func contains(s []string, v string) bool {
 }
 
 func TestDownloadHandler(t *testing.T) {
-	w, err := newRequest("/range/", map[string]string{"Accept": "application/json"}, "POST")
+	w, err := newRequest("/range/download", map[string]string{"Accept": "application/json"}, "GET")
 	if err != nil {
 		t.Fatal(err)
 	}
