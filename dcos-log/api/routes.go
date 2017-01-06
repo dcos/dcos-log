@@ -45,10 +45,10 @@ func newAPIRouter(cfg *config.Config, client *http.Client, nodeInfo nodeutil.Nod
 	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
 		Handler(newAuthMiddleware(handler)).Methods("GET")
 
-	// POST added download headers
-	logsRange.Path("/").Handler(downloadGzippedContentMiddleware(handler, "root-range")).Methods("POST")
-	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
-		Handler(newAuthMiddleware(downloadGzippedContentMiddleware(handler, "app", "container_id"))).Methods("POST")
+	// added download headers
+	logsRange.Path("/download").Handler(downloadGzippedContentMiddleware(handler, "root-range")).Methods("GET")
+	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}/download").
+		Handler(newAuthMiddleware(downloadGzippedContentMiddleware(handler, "task", "container_id"))).Methods("GET")
 
 	logsStream := r.PathPrefix("/stream").Subrouter()
 	logsStream.Path("/").Handler(streamMiddleware(handler)).Methods("GET")

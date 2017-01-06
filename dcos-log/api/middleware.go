@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
@@ -198,12 +197,19 @@ func downloadGzippedContentMiddleware(next http.Handler, prefix string, vars ...
 			}
 		}
 
+		// get user provided postfix
+		if err := r.ParseForm(); err == nil {
+			if postfix := r.Form.Get("postfix"); postfix != "" {
+				filenameParts = append(filenameParts, postfix)
+			}
+		}
+
 		filename := strings.Join(filenameParts, "-")
 		if filename == "" {
 			filename = "download"
 		}
 
-		f := fmt.Sprintf("%s-%d.log.gz", filename, time.Now().UnixNano())
+		f := fmt.Sprintf("%s.log.gz", filename)
 		w.Header().Add("Content-disposition", "attachment; filename="+f)
 		gz := gzip.NewWriter(w)
 		defer gz.Close()
