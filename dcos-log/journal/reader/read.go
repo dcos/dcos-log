@@ -207,3 +207,11 @@ reader:
 
 	return sz, nil
 }
+
+// add Close() function so the journal implement io.ReadCloser
+func (r *Reader) Close() error {
+	if r.Journal == nil {
+		return ErrUninitializedReader
+	}
+	return r.Journal.Close()
+}
