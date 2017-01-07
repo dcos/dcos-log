@@ -88,6 +88,7 @@ func OptionSkipPrev(n uint64) Option {
 	}
 }
 
+// OptionSince is a functional option that implements journalctl --since analogue.
 func OptionSince(d time.Duration) Option {
 	return func(r *Reader) error {
 		if d <= 0 {

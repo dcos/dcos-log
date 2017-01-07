@@ -208,7 +208,7 @@ reader:
 	return sz, nil
 }
 
-// add Close() function so the journal implement io.ReadCloser
+// Close is a function to close the journal. Along with Read() function it implements io.ReadCloser
 func (r *Reader) Close() error {
 	if r.Journal == nil {
 		return ErrUninitializedReader
