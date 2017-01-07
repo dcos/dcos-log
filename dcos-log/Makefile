@@ -1,4 +1,4 @@
-all: lint test build
+all: lint vet test build
 
 install:
 	@echo "+$@"
@@ -13,7 +13,7 @@ lint:
 	go get -u github.com/golang/lint/golint
 	golint -set_exit_status ./...
 
-test:
+test: lint vet
 	@echo "+$@"
 	go test -race -cover -test.v ./...
 
@@ -24,4 +24,8 @@ build:
 clean:
 	@echo "+$@"
 	rm -f dcos-log
+
+vet:
+	@echo "+$@"
+	go vet ./...
 
