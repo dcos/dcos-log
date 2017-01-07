@@ -4,10 +4,16 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
-// ErrCursorFormat is the error thrown by OptionSeekCursor if cursor string is invalid.
-var ErrCursorFormat = errors.New("Incorrect cursor string")
+var (
+	// ErrCursorFormat is the error thrown by OptionSeekCursor if cursor string is invalid.
+	ErrCursorFormat = errors.New("Incorrect cursor string")
+
+	// ErrInvalidDuration is the error thrown by OptionSince if negative or zero duration used.
+	ErrInvalidDuration = errors.New("Invalid duration parameter")
+)
 
 // Option is a functional option that configures a Reader.
 type Option func(*Reader) error
@@ -77,6 +83,20 @@ func OptionSkipPrev(n uint64) Option {
 	return func(r *Reader) error {
 		if n > 0 {
 			return r.SkipPrev(n)
+		}
+		return nil
+	}
+}
+
+// OptionSince is a functional option that implements journalctl --since analogue.
+func OptionSince(d time.Duration) Option {
+	return func(r *Reader) error {
+		if d <= 0 {
+			return ErrInvalidDuration
+		}
+		start := time.Now().Add(-d)
+		if err := r.Journal.SeekRealtimeUsec(uint64(start.UnixNano() / 1000)); err != nil {
+			return err
 		}
 		return nil
 	}
