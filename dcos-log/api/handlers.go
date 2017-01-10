@@ -170,6 +170,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 	// for streaming endpoints and SSE logs format we include id: CursorID before each log entry.
 	entryFormatter := reader.NewEntryFormatter(req.Header.Get("Accept"), stream)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// get a list of matches from request path
 	matches := pathMatches(req)
@@ -252,7 +253,6 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 				req.RequestURI, req.RemoteAddr)
 		}
 	}()
-	defer cancel()
 
 	w.Header().Set("Content-Type", entryFormatter.GetContentType().String())
 
