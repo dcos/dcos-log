@@ -49,7 +49,6 @@ func (e ErrNodeInfo) Error() string {
 // NodeInfo defines an interface to interact with DC/OS cluster via go methods.
 type NodeInfo interface {
 	DetectIP() (net.IP, error)
-	Role() (string, error)
 	IsLeader() (bool, error)
 	MesosID(context.Context) (string, error)
 	ClusterID() (string, error)
@@ -63,43 +62,51 @@ type dcosInfo struct {
 
 	// cached data
 	cachedIP        *net.IP
-	cachedRole      string
 	cachedIsLeader  *bool
 	cachedMesosID   string
 	cachedClusterID string
 
 	// caller parameters
-	client              *http.Client
-	detectIPLocation    string
-	detectIPTimeout     time.Duration
-	roleMasterFile      string
-	roleAgentFile       string
-	roleAgentPublicFile string
-	mesosStateURL       string
-	dnsRecordLeader     string
-	clusterIDLocation   string
+	client            *http.Client
+	detectIPLocation  string
+	detectIPTimeout   time.Duration
+	role              string
+	mesosStateURL     string
+	dnsRecordLeader   string
+	clusterIDLocation string
 }
 
 // NewNodeInfo returns a new instance of NodeInfo implementation.
-func NewNodeInfo(client *http.Client, options ...Option) (NodeInfo, error) {
+func NewNodeInfo(client *http.Client, role string, options ...Option) (NodeInfo, error) {
 	if client == nil {
 		return nil, ErrNodeInfo{"Client paramter cannot be empty"}
 	}
 
-	// setup default mesos state url.
+	validRole := func() bool {
+		for _, validRole := range []string{dcos.RoleMaster, dcos.RoleAgent, dcos.RoleAgentPublic} {
+			if role == validRole {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !validRole() {
+		return nil, ErrNodeInfo{
+			fmt.Sprintf("Role paramter is invalid or empty. Got %s", role),
+		}
+	}
 
 	// setup dcosInfo with default parameters.
 	d := &dcosInfo{
-		client:              client,
-		cache:               true,
-		detectIPLocation:    dcos.FileDetectIP,
-		detectIPTimeout:     defaultExecTimeout,
-		roleMasterFile:      dcos.FileMaster,
-		roleAgentFile:       dcos.FileAgent,
-		roleAgentPublicFile: dcos.FileAgentPublic,
-		dnsRecordLeader:     dcos.DNSRecordLeader,
-		mesosStateURL:       defaultStateURL.String(),
-		clusterIDLocation:   defaultClusterIDLocation,
+		client:            client,
+		role:              role,
+		cache:             true,
+		detectIPLocation:  dcos.FileDetectIP,
+		detectIPTimeout:   defaultExecTimeout,
+		dnsRecordLeader:   dcos.DNSRecordLeader,
+		mesosStateURL:     defaultStateURL.String(),
+		clusterIDLocation: defaultClusterIDLocation,
 	}
 
 	// update parameters with a caller input.
@@ -164,64 +171,9 @@ func (d *dcosInfo) DetectIP() (net.IP, error) {
 	return validIP, nil
 }
 
-// Role returns a node's role.
-func (d *dcosInfo) Role() (string, error) {
-	d.Lock()
-	defer d.Unlock()
-
-	// return cached node role
-	if d.cache && d.cachedRole != "" {
-		return d.cachedRole, nil
-	}
-
-	isFile := func(path string) bool {
-		stat, err := os.Stat(path)
-		return err == nil && !stat.IsDir()
-	}
-
-	// iterate over files and get the role.
-	var roles []string
-	for _, i := range []struct {
-		file string
-		role string
-	}{
-		{
-			file: d.roleMasterFile,
-			role: dcos.RoleMaster,
-		},
-		{
-			file: d.roleAgentFile,
-			role: dcos.RoleAgent,
-		},
-		{
-			file: d.roleAgentPublicFile,
-			role: dcos.RoleAgentPublic,
-		},
-	} {
-		if ok := isFile(i.file); ok {
-			roles = append(roles, i.role)
-		}
-	}
-
-	if len(roles) == 0 || len(roles) > 1 {
-		return "", ErrNodeInfo{fmt.Sprintf("Node must have only one role. Got %s", roles)}
-	}
-
-	if d.cache {
-		d.cachedRole = roles[0]
-	}
-
-	return roles[0], nil
-}
-
 // IsLeader checks if the node is leader.
 func (d *dcosInfo) IsLeader() (bool, error) {
 	// find role and IP before locking the structure.
-	role, err := d.Role()
-	if err != nil {
-		return false, err
-	}
-
 	localIP, err := d.DetectIP()
 	if err != nil {
 		return false, err
@@ -235,7 +187,7 @@ func (d *dcosInfo) IsLeader() (bool, error) {
 	}
 
 	// agent cannot be leader
-	if role != dcos.RoleMaster {
+	if d.role != dcos.RoleMaster {
 		return false, nil
 	}
 
@@ -278,11 +230,6 @@ func (d *dcosInfo) MesosID(ctx context.Context) (string, error) {
 		return result, nil
 	}
 	d.Unlock()
-
-	role, err := d.Role()
-	if err != nil {
-		return "", err
-	}
 
 	// if we request IP for an agent node, we should look at `slaves` field.
 	localIP, err := d.DetectIP()
@@ -332,7 +279,7 @@ func (d *dcosInfo) MesosID(ctx context.Context) (string, error) {
 	}
 
 	// if the request for a master node, give back the top level ID from state.json
-	if role == dcos.RoleMaster {
+	if d.role == dcos.RoleMaster {
 		if state.ID == "" {
 			return "", ErrNodeInfo{"Unable to retrieve mesos id for master node. ID field is empty"}
 		}
