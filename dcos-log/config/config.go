@@ -40,8 +40,13 @@ var internalJSONValidationSchema = `
 	    },
 	    "timeout": {
 	      "type": "string"
+	    },
+	    "role": {
+	      "type": "string",
+	      "enum": ["master", "agent", "agent_public"]
 	    }
 	  },
+	  "required": ["role"],
 	  "additionalProperties": false
 	}`
 
@@ -64,6 +69,9 @@ type Config struct {
 
 	// FlagGetRequestTimeout sets a timeout for Get requests used in authorization.
 	FlagGetRequestTimeout string `json:"timeout"`
+
+	// FlagRole sets a node's role
+	FlagRole string `json:"role"`
 }
 
 func (c *Config) setFlags(fs *flag.FlagSet) {
@@ -73,6 +81,7 @@ func (c *Config) setFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.FlagAuth, "auth", c.FlagAuth, "Enable authorization.")
 	fs.StringVar(&c.FlagCACertFile, "ca-cert", c.FlagCACertFile, "Use certificate authority.")
 	fs.StringVar(&c.FlagGetRequestTimeout, "timeout", c.FlagGetRequestTimeout, "GET request timeout.")
+	fs.StringVar(&c.FlagRole, "role", c.FlagRole, "Set node's role.")
 }
 
 // NewConfig returns a new instance of Config with loaded fields.

@@ -37,12 +37,7 @@ var (
 	ErrInvalidToken = errors.New("Invalid token used")
 )
 
-func getSandboxURL(nodeInfo nodeutil.NodeInfo) (*url.URL, error) {
-	role, err := nodeInfo.Role()
-	if err != nil {
-		return nil, err
-	}
-
+func getSandboxURL(nodeInfo nodeutil.NodeInfo, role string) (*url.URL, error) {
 	mesosPort := dcos.PortMesosAgent
 	if role == dcos.RoleMaster {
 		mesosPort = dcos.PortMesosMaster
@@ -104,7 +99,7 @@ func getAuthOrCookieFromRequest(r *http.Request) (string, error) {
 	return "", ErrMissingToken
 }
 
-func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.NodeInfo) http.Handler {
+func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.NodeInfo, role string) http.Handler {
 	if nodeInfo == nil {
 		panic("nodeInfo cannot be nil")
 	}
@@ -130,7 +125,7 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 			return
 		}
 
-		sandboxBaseURL, err := getSandboxURL(nodeInfo)
+		sandboxBaseURL, err := getSandboxURL(nodeInfo, role)
 		if err != nil {
 			httpError(w, "Unable to get sandboxBaseURL: "+err.Error(), http.StatusInternalServerError, r)
 			return

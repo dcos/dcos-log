@@ -33,7 +33,7 @@ func newNodeInfo(cfg *config.Config, client *http.Client) (nodeutil.NodeInfo, er
 	}
 
 	// if auth is enabled we will also make requests to mesos via https.
-	nodeInfo, err := nodeutil.NewNodeInfo(client, nodeutil.OptionMesosStateURL(defaultStateURL.String()))
+	nodeInfo, err := nodeutil.NewNodeInfo(client, cfg.FlagRole, nodeutil.OptionMesosStateURL(defaultStateURL.String()))
 	if err != nil {
 		return nil, err
 	}
