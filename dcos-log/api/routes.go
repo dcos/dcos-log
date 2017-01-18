@@ -25,7 +25,7 @@ func newAPIRouter(cfg *config.Config, client *http.Client, nodeInfo nodeutil.Nod
 
 	if cfg.FlagAuth {
 		newAuthMiddleware = func(h http.Handler) http.Handler {
-			return authMiddleware(h, client, nodeInfo)
+			return authMiddleware(h, client, nodeInfo, cfg.FlagRole)
 		}
 	}
 
