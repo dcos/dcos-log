@@ -1,21 +1,17 @@
 package api
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/activation"
 	"github.com/dcos/dcos-go/dcos"
+	"github.com/dcos/dcos-go/dcos/http/transport"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"github.com/dcos/dcos-log/dcos-log/config"
 )
@@ -41,48 +37,16 @@ func newNodeInfo(cfg *config.Config, client *http.Client) (nodeutil.NodeInfo, er
 	return nodeInfo, nil
 }
 
-// loadCAPool will load a valid x509 cert.
-func loadCAPool(path string) (*x509.CertPool, error) {
-	caPool := x509.NewCertPool()
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	if !caPool.AppendCertsFromPEM(b) {
-		return nil, errors.New("CACertFile parsing failed")
-	}
-
-	return caPool, nil
-}
-
 // StartServer is an entry point to dcos-log service.
 func StartServer(cfg *config.Config) error {
-	tr := &http.Transport{
-		DisableKeepAlives: true,
+	transportOptions := []transport.OptionTransportFunc{}
+	if cfg.FlagCACertFile != "" {
+		transportOptions = append(transportOptions, transport.OptionIAMConfigPath(cfg.FlagCACertFile))
 	}
 
-	// if user provided CA cert we must use it, otherwise use InsecureSkipVerify: true for all HTTPS requests.
-	if cfg.FlagCACertFile != "" {
-		logrus.Infof("Loading CA cert: %s", cfg.FlagCACertFile)
-		caPool, err := loadCAPool(cfg.FlagCACertFile)
-		if err != nil {
-			return err
-		}
-
-		tr.TLSClientConfig = &tls.Config{
-			RootCAs: caPool,
-		}
-	} else {
-		tr.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
+	tr, err := transport.NewTransport(transportOptions...)
+	if err != nil {
+		return err
 	}
 
 	// update get request timeout.
