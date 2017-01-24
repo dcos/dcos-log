@@ -37,6 +37,12 @@
 			"revisionTime": "2017-01-17T23:52:57Z"
 		},
 		{
+			"checksumSHA1": "Qz6GSjmNYD4CiTapDBqbkFAJYCI=",
+			"path": "github.com/dcos/dcos-go/dcos/http/transport",
+			"revision": "fae0702ef953feeff2c27e1707b3baacdcf90efc",
+			"revisionTime": "2017-01-19T15:54:30Z"
+		},
+		{
 			"checksumSHA1": "5u8nushsLFw5NWDh8H9G4Dm15fc=",
 			"path": "github.com/dcos/dcos-go/dcos/nodeutil",
 			"revision": "7bf71fc4cf2fdd10f12b3452f7bf40f473db4e1e",
