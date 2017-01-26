@@ -41,7 +41,7 @@ func newNodeInfo(cfg *config.Config, client *http.Client) (nodeutil.NodeInfo, er
 func StartServer(cfg *config.Config) error {
 	transportOptions := []transport.OptionTransportFunc{}
 	if cfg.FlagCACertFile != "" {
-		transportOptions = append(transportOptions, transport.OptionIAMConfigPath(cfg.FlagCACertFile))
+		transportOptions = append(transportOptions, transport.OptionCaCertificatePath(cfg.FlagCACertFile))
 	}
 
 	tr, err := transport.NewTransport(transportOptions...)
