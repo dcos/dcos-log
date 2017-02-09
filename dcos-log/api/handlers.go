@@ -280,6 +280,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	w.Header().Set("X-Accel-Buffering", "no")
 	f := w.(http.Flusher)
 	notify := w.(http.CloseNotifier).CloseNotify()
 
