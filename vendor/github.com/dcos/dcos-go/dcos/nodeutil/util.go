@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -263,8 +264,8 @@ func (d *dcosInfo) MesosID(ctx context.Context) (string, error) {
 		// top level ID is used for mesos master ID.
 		ID     string `json:"id"`
 		Slaves []struct {
-			ID       string `json:"id"`
-			Hostname string `json:"hostname"`
+			ID  string `json:"id"`
+			Pid string `json:"pid"`
 		} `json:"slaves"`
 	}
 
@@ -294,12 +295,13 @@ func (d *dcosInfo) MesosID(ctx context.Context) (string, error) {
 	}
 
 	for _, slave := range state.Slaves {
-		validSlaveIP := net.ParseIP(slave.Hostname)
-		if validSlaveIP == nil {
-			return "", ErrNodeInfo{fmt.Sprintf("Incorrect IP in response %s", slave.Hostname)}
+
+		validSlaveIP, err := getIPFromPIDField(slave.Pid)
+		if err != nil {
+			return "", err
 		}
 
-		if localIP.Equal(validSlaveIP) {
+		if localIP.Equal(*validSlaveIP) {
 			if d.cache {
 				d.Lock()
 				d.cachedMesosID = slave.ID
@@ -310,6 +312,27 @@ func (d *dcosInfo) MesosID(ctx context.Context) (string, error) {
 	}
 
 	return "", ErrNodeInfo{fmt.Sprintf("Local node's IP %s not found in mesos state response %+v", localIP, state)}
+}
+
+func getIPFromPIDField(s string) (*net.IP, error) {
+	errMsg := fmt.Sprintf("Expecting pid in the following format `slave(1)@ip-address:port`. Got %s", s)
+
+	slaveStr := strings.Split(s, "@")
+	if len(slaveStr) != 2 {
+		return nil, ErrNodeInfo{errMsg}
+	}
+
+	ipPortStr := strings.Split(slaveStr[1], ":")
+	if len(ipPortStr) != 2 {
+		return nil, ErrNodeInfo{errMsg}
+	}
+
+	validSlaveIP := net.ParseIP(ipPortStr[0])
+	if validSlaveIP == nil {
+		return nil, ErrNodeInfo{fmt.Sprintf("Incorrect IP in response %s", ipPortStr[0])}
+	}
+
+	return &validSlaveIP, nil
 }
 
 // ClusterID returns a UUID of a specific cluster. The file containing the UUID
