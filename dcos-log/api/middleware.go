@@ -29,13 +29,9 @@ const (
 	sandboxRuns       = "runs"
 )
 
-var (
-	// ErrMissingToken is returned by getAuthOrCookieFromRequest when JWT is missing.
-	ErrMissingToken = errors.New("Missing token in auth request")
+// ErrMissingToken is returned by getAuthFromRequest when JWT is missing.
+var ErrMissingToken = errors.New("Missing token in auth request")
 
-	// ErrInvalidToken is returned by validateToken if a token string did not pass validation.
-	ErrInvalidToken = errors.New("Invalid token used")
-)
 
 func getSandboxURL(nodeInfo nodeutil.NodeInfo, role string) (*url.URL, error) {
 	mesosPort := dcos.PortMesosAgent
@@ -61,39 +57,18 @@ func getSandboxURL(nodeInfo nodeutil.NodeInfo, role string) (*url.URL, error) {
 // validate the token
 func validateToken(t string) (string, error) {
 	if !strings.HasPrefix(t, "token=") {
-		return t, ErrInvalidToken
+		return t, ErrMissingToken
 	}
 
-	// JWT structure: header.payload.signature https://jwt.io/introduction/
-	if parts := strings.Split(t, "."); len(parts) != 3 {
-		return t, ErrInvalidToken
-	}
-
-	// TODO: improve token validation
 	return t, nil
 }
 
-// getAuthOrCookieFromRequest will try to extract JWT from Authorization header first. If it is not there
-// it will try to look for a dcos-acs-auth-cookie.
-func getAuthOrCookieFromRequest(r *http.Request) (string, error) {
+// getAuthFromRequest will try to extract JWT from Authorization header.
+func getAuthFromRequest(r *http.Request) (string, error) {
 	// give priority to Authorization header
 	authorizationHeader := r.Header.Get("Authorization")
 	if authorizationHeader != "" {
 		return validateToken(authorizationHeader)
-	}
-
-	// if authorization header is not set and no cookie header, return empty string
-	cookieHeader := r.Header.Get("Cookie")
-	if cookieHeader == "" {
-		return "", ErrMissingToken
-	}
-
-	cookies := strings.Split(cookieHeader, ";")
-	for _, cookie := range cookies {
-		keyValue := strings.Split(cookie, "=")
-		if strings.TrimSpace(keyValue[0]) == authCookieName {
-			return validateToken("token=" + keyValue[1])
-		}
 	}
 
 	return "", ErrMissingToken
@@ -107,7 +82,7 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// JWT is required to present in a request. The middleware will extract the token and try to access
 		// sandbox with it. We authorize the request if sandbox returns 200.
-		token, err := getAuthOrCookieFromRequest(r)
+		token, err := getAuthFromRequest(r)
 		if err != nil {
 			httpError(w, fmt.Sprintf("Token error: %s", err.Error()), http.StatusUnauthorized, r)
 			return
