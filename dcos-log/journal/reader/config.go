@@ -52,6 +52,23 @@ func OptionMatch(m []JournalEntryMatch) Option {
 	}
 }
 
+// OptionMatchOR is a functional option that filters entries and applies logical OR to user
+// arguments []JournalEntryMatch.
+func OptionMatchOR(m []JournalEntryMatch) Option {
+	return func(r *Reader) error {
+		if r.Journal == nil {
+			return ErrUninitializedReader
+		}
+
+		for _, match := range m {
+			r.Journal.AddMatch(match.String())
+			r.Journal.AddDisjunction()
+		}
+
+		return nil
+	}
+}
+
 // OptionSeekCursor is a functional option that seeks a cursor in the journal.
 func OptionSeekCursor(c string) Option {
 	return func(r *Reader) error {
