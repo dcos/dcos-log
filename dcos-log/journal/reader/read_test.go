@@ -161,3 +161,37 @@ func TestJournalSkipForward(t *testing.T) {
 		t.Fatalf("Must have 4 entries. Got %d", size)
 	}
 }
+
+func TestOptionMatchOR(t *testing.T) {
+	str1 := getUniqueString()
+	str2 := getUniqueString()
+	journal.Send(str1, journal.PriInfo, map[string]string{"PROP1": str1})
+	journal.Send(str2, journal.PriInfo, map[string]string{"PROP2": str2})
+
+	// wait for journal entries to commit
+	time.Sleep(time.Millisecond * 100)
+
+	r, err := NewReader(FormatJSON{}, OptionMatchOR([]JournalEntryMatch{
+		{
+			Field: "PROP1",
+			Value: str1,
+		},
+		{
+			Field: "PROP2",
+			Value: str2,
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var size int
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		size++
+	}
+
+	if size != 2 {
+		t.Fatalf("Expecting to find 2 entries, got %d", size)
+	}
+}
