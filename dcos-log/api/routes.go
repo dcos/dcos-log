@@ -39,25 +39,22 @@ func newAPIRouter(cfg *config.Config, client *http.Client, nodeInfo nodeutil.Nod
 	handler := http.HandlerFunc(readJournalHandler)
 
 	r := mux.NewRouter()
-	// GET
-	logsRange := r.PathPrefix("/range").Subrouter()
-	logsRange.Path("/").Handler(handler).Methods("GET")
-	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
+	// define top level subrouter for base endpoint /v1
+	v1 := r.PathPrefix("/v1").Subrouter()
+
+	v1.Path("/range/").Handler(handler).Methods("GET")
+	v1.Path("/range/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
 		Handler(newAuthMiddleware(handler)).Methods("GET")
 
-	// added download headers
-	logsRange.Path("/download").Handler(downloadGzippedContentMiddleware(handler, "root-range")).Methods("GET")
-	logsRange.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}/download").
+	v1.Path("/range/download").Handler(downloadGzippedContentMiddleware(handler, "root-range")).Methods("GET")
+	v1.Path("/range/framework/{framework_id}/executor/{executor_id}/container/{container_id}/download").
 		Handler(newAuthMiddleware(downloadGzippedContentMiddleware(handler, "task", "container_id"))).Methods("GET")
 
-	logsStream := r.PathPrefix("/stream").Subrouter()
-	logsStream.Path("/").Handler(streamMiddleware(handler)).Methods("GET")
-	logsStream.Path("/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
+	v1.Path("/stream/").Handler(streamMiddleware(handler)).Methods("GET")
+	v1.Path("/stream/framework/{framework_id}/executor/{executor_id}/container/{container_id}").
 		Handler(newAuthMiddleware(streamMiddleware(handler))).Methods("GET")
 
-	// /field/{field} route
-	fields := r.PathPrefix("/fields").Subrouter()
-	fields.Path("/{field}").HandlerFunc(fieldHandler)
+	v1.Path("/fields/{field}").HandlerFunc(fieldHandler)
 
 	return r, nil
 }
