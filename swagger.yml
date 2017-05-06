@@ -8,7 +8,7 @@ info:
     Note that the endpoints in this spec are all *service-specific*. dcos-log
     is designed to be put behind Admin Router, which provides security for these
     endpoints. Therefore, on a DC/OS cluster, the final URL to query will resemble:
-    `http://<host>/system/v1/agent/<agent-id>/logs/v1/<endpoint>`
+    `http://{host}/system/v1/agent/{agent-id}/logs/v1/{endpoint}`
     For more information, see
     [DC/OS Logging](http://localhost:3000/docs/latest/monitoring/logging/) or
     the [DC/OS Log Source](https://github.com/dcos/dcos-log).
