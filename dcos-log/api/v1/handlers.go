@@ -1,4 +1,4 @@
-package api
+package v1
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"github.com/dcos/dcos-log/dcos-log/journal/reader"
 	"github.com/gorilla/mux"
 )
+
 
 // AllowedFields contain `Journald Container Logger module` fields except ExecutorInfo.
 // https://github.com/dcos/dcos-mesos-modules/blob/master/journald/README.md#journald-container-logger-module
