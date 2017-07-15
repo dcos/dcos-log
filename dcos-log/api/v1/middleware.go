@@ -1,4 +1,4 @@
-package api
+package v1
 
 import (
 	"compress/gzip"
@@ -31,7 +31,6 @@ const (
 
 // ErrMissingToken is returned by getAuthFromRequest when JWT is missing.
 var ErrMissingToken = errors.New("Missing token in auth request")
-
 
 func getSandboxURL(nodeInfo nodeutil.NodeInfo, role string) (*url.URL, error) {
 	mesosPort := dcos.PortMesosAgent
