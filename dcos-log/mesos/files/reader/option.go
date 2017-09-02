@@ -25,3 +25,10 @@ func OptHeaders(h http.Header) Option {
 		return nil
 	}
 }
+
+func OptReadDirection(r ReadDirection) Option {
+	return func(rm *ReadManager) error {
+		rm.readDirection = r
+		return nil
+	}
+}
