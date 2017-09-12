@@ -10,10 +10,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"github.com/Sirupsen/logrus"
 )
 
 const (
-	chunkSize = 4096
+	chunkSize = 1 << 16
 )
 
 type response struct {
@@ -37,6 +38,7 @@ func notEmpty(args []string) error {
 	return nil
 }
 
+
 // NewLineReader is a ReadManager constructor.
 //func NewLineReader(masterURL *url.URL, client *http.Client, file, agentID, frameworkID, executorID, containerID string,
 //	h http.Header, n int) (*ReadManager, error) {
@@ -53,11 +55,11 @@ func NewLineReader(client *http.Client, masterURL *url.URL, agentID, frameworkID
 	rm := &ReadManager{
 		client: client,
 
-		// use default `stdout` file
 		File:         "stdout",
 		readEndpoint: &masterURLCopy,
 		sandboxPath: fmt.Sprintf("/var/lib/mesos/slave/slaves/%s/frameworks/%s/executors/%s/runs/%s/",
 			agentID, frameworkID, executorID, containerID),
+		formatFn: sseFormat,
 	}
 
 	for _, opt := range opts {
@@ -85,7 +87,7 @@ func NewLineReader(client *http.Client, masterURL *url.URL, agentID, frameworkID
 				break
 			}
 
-			lines, delta, err := rm.read(context.TODO(), offset, chunkSize, false, reverse)
+			lines, delta, err := rm.read(context.TODO(), offset, chunkSize, reverse)
 			if err != nil {
 				return nil, err
 			}
@@ -94,7 +96,7 @@ func NewLineReader(client *http.Client, masterURL *url.URL, agentID, frameworkID
 			if foundLines+len(lines) >= rm.n {
 				diff := rm.n - foundLines
 				for i := len(lines) - diff; i < len(lines); i++ {
-					rm.offset -= len(lines[i]) + 1
+					rm.offset -= len(lines[i].Message) + 1
 				}
 				break
 			} else {
@@ -103,7 +105,7 @@ func NewLineReader(client *http.Client, masterURL *url.URL, agentID, frameworkID
 				foundLines += len(lines)
 			}
 
-			offset -= chunkSize - delta + 7
+			offset -= chunkSize - delta //+ 7
 			rm.offset = offset
 		}
 	}
@@ -132,10 +134,12 @@ type ReadManager struct {
 
 	size int
 	offset int
-	lines []string
+	lines []Line
 
 	readLines int
-	ignoreDelta bool
+	stream bool
+
+	formatFn Formatter
 }
 
 func (rm *ReadManager) do(req *http.Request) (*response, error) {
@@ -164,6 +168,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	newURL := *rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
+	// fmt.Println(newURL.String())
 	req, err := http.NewRequest("GET", newURL.String(), nil)
 	if err != nil {
 		return 0, err
@@ -178,10 +183,9 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	return resp.Offset, nil
 }
 
-type Callback func(l *Line)
 type Modifier func(s string) string
 
-func (rm *ReadManager) read(ctx context.Context, offset, length int, ignoreDelta bool, modifier Modifier) ([]string, int, error) {
+func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier Modifier) ([]Line, int, error) {
 	v := url.Values{}
 	v.Add("path", rm.sandboxPath+rm.File)
 	v.Add("offset", strconv.Itoa(offset))
@@ -194,7 +198,7 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, ignoreDelta
 	newURL := *rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
-	//fmt.Println(newURL.String())
+	logrus.Info(newURL.String())
 
 	req, err := http.NewRequest("GET", newURL.String(), nil)
 	if err != nil {
@@ -208,43 +212,51 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, ignoreDelta
 	}
 	lines := strings.Split(modifier(resp.Data), "\n")
 
-	if ignoreDelta {
-		return lines, 0, nil
-	}
-
 	delta := 0
-	if len(lines) > 2 {
+	if len(lines) > 1 {
 		delta = len(lines[len(lines)-1])
 		lines = lines[:len(lines)-1]
 	}
 
-	return lines, delta, nil
+	linesWithOffset := make([]Line, len(lines))
+	// accumulates the position of the line + \n
+	accumulator := 0
+	for i := 0; i < len(lines); i++ {
+		linesWithOffset[i] = Line{
+			Message: lines[i],
+			Offset:  offset + accumulator,
+			Size:    len(lines[i]),
+		}
+		accumulator += len(lines[i]) + 1
+	}
+
+	return linesWithOffset, delta, nil
 }
 
-func (r *ReadManager) Prepand(s string) {
+func (r *ReadManager) Prepand(s Line) {
 	old := r.lines
-	r.lines = append([]string{s}, old...)
+	r.lines = append([]Line{s}, old...)
 }
 
-func (r *ReadManager) Pop() string {
+func (r *ReadManager) Pop() *Line {
 	old := *r
 	n := len(old.lines)
 	if n == 0 {
-		return ""
+		return nil
 	}
 
 	x := old.lines[n-1]
 	r.lines = old.lines[0 : n-1]
-	return x
+	return &x
 }
 
 func (r *ReadManager) Read(b []byte) (int, error) {
-	if r.n > 0 && r.readLines == r.n {
+	if !r.stream && r.readLines == r.n {
 		return 0, io.EOF
 	}
 
 	if len(r.lines) == 0 {
-		lines, delta, err := r.read(context.TODO(), r.offset, chunkSize, r.ignoreDelta, nil)
+		lines, delta, err := r.read(context.TODO(), r.offset, chunkSize, nil)
 		if err != nil {
 			return 0, err
 		}
@@ -253,25 +265,24 @@ func (r *ReadManager) Read(b []byte) (int, error) {
 			linesLen := 0
 			for _, line := range lines {
 				r.Prepand(line)
-				linesLen += len(line) + 1
+				linesLen += len(line.Message) + 1
 			}
 
 			if linesLen < chunkSize {
 				r.offset = r.offset + linesLen - 1
-				r.ignoreDelta = true
 			} else {
-				r.offset = (r.offset + chunkSize) - delta
+				r.offset = (r.offset + chunkSize) - delta - 1
 			}
 		}
 	}
 
 	line := r.Pop()
-	if line == "" {
+	if line == nil || line.Message == "" {
 		return 0, io.EOF
 	}
 
 	r.readLines++
-	return strings.NewReader(line + "\n").Read(b)
+	return strings.NewReader(r.formatFn(*line)).Read(b)
 }
 
 func reverse(s string) string {
