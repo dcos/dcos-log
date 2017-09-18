@@ -38,7 +38,7 @@ func (mt MesosTask) URL() (string, error) {
 	}
 
 	// /system/v1/agent/<agent-id>/logs/v2/stream/<agent-id>/<framework-id>/<executor-id>/<container-id>
-	taskLogURL := fmt.Sprintf("%s/%s/logs/v2/stream/%s/%s/%s", prefix, mt.AgentID, mt.FrameworkID, mt.ExecutorID, mt.ContainerID)
+	taskLogURL := fmt.Sprintf("%s/%s/logs/v2/task/%s/%s/%s", prefix, mt.AgentID, mt.ContainerID, mt.FrameworkID, mt.ExecutorID)
 	logrus.Infof("built URL: %s", taskLogURL)
 	return taskLogURL, nil
 }

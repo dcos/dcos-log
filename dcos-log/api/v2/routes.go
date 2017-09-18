@@ -14,7 +14,7 @@ func InitRoutes(v2 *mux.Router, cfg *config.Config, client *http.Client, nodeInf
 	handler := http.HandlerFunc(readFilesAPI)
 	wrapped := middleware.MesosFileReader(handler, client, nodeInfo)
 
-	v2.Path("/stream/{frameworkID}/{executorID}/{containerID}").Handler(wrapped).Methods("GET")
+	v2.Path("/task/{containerID}/{frameworkID}/{executorID}").Handler(wrapped).Methods("GET")
 	v2.Path("/{taskID}").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		discover(w, req, client)
 	})
