@@ -1,8 +1,8 @@
 package reader
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 )
 
 // Option ...

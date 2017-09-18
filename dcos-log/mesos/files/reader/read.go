@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -38,25 +38,21 @@ func notEmpty(args []string) error {
 	return nil
 }
 
-
 // NewLineReader is a ReadManager constructor.
 //func NewLineReader(masterURL *url.URL, client *http.Client, file, agentID, frameworkID, executorID, containerID string,
 //	h http.Header, n int) (*ReadManager, error) {
-func NewLineReader(client *http.Client, masterURL *url.URL, agentID, frameworkID, executorID, containerID string, opts ...Option) (*ReadManager, error) {
+func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID, executorID, containerID string, opts ...Option) (*ReadManager, error) {
 
 	// make sure the required parameters are set properly
 	if err := notEmpty([]string{agentID, frameworkID, executorID, containerID}); err != nil {
 		return nil, err
 	}
 
-	masterURLCopy := *masterURL
-	masterURLCopy.Path = fmt.Sprintf("/agent/%s/files/read", agentID)
-
 	rm := &ReadManager{
 		client: client,
 
 		File:         "stdout",
-		readEndpoint: &masterURLCopy,
+		readEndpoint: masterURL,
 		sandboxPath: fmt.Sprintf("/var/lib/mesos/slave/slaves/%s/frameworks/%s/executors/%s/runs/%s/",
 			agentID, frameworkID, executorID, containerID),
 		formatFn: sseFormat,
@@ -124,20 +120,20 @@ const (
 // http://mesos.apache.org/documentation/latest/endpoints/files/read/
 type ReadManager struct {
 	client       *http.Client
-	readEndpoint *url.URL
+	readEndpoint url.URL
 	sandboxPath  string
 	header       http.Header
 
 	readDirection ReadDirection
-	n      int
-	File string
+	n             int
+	File          string
 
-	size int
+	size   int
 	offset int
-	lines []Line
+	lines  []Line
 
 	readLines int
-	stream bool
+	stream    bool
 
 	formatFn Formatter
 }
@@ -165,7 +161,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	v := url.Values{}
 	v.Add("path", rm.sandboxPath+rm.File)
 	v.Add("offset", "-1")
-	newURL := *rm.readEndpoint
+	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
 	// fmt.Println(newURL.String())
@@ -195,7 +191,7 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier Mo
 		modifier = func(s string) string { return s }
 	}
 
-	newURL := *rm.readEndpoint
+	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
 	logrus.Info(newURL.String())
