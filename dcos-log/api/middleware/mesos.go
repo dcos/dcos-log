@@ -71,8 +71,7 @@ func MesosFileReader(next http.Handler, client *http.Client, nodeInfo nodeutil.N
 			Path: "/files/read",
 		}
 
-		opts := []reader.Option{reader.OptHeaders(header), reader.OptStream(true),
-			reader.OptReadDirection(reader.BottomToTop), reader.OptLines(10)}
+		opts := []reader.Option{reader.OptHeaders(header), reader.OptStream(true)}
 		lastEventID := r.Header.Get("Last-Event-ID")
 		if lastEventID != "" {
 			offset, err := strconv.Atoi(lastEventID)

@@ -65,7 +65,8 @@ func discover(w http.ResponseWriter, req *http.Request, client *http.Client) {
 		return
 	}
 
-	http.Redirect(w, req, taskURL, http.StatusTemporaryRedirect)
+	http.Redirect(w, req, taskURL, http.StatusSeeOther)
+	//http.Redirect(w, req, taskURL, http.StatusTemporaryRedirect)
 }
 
 func getTaskDetails(taskID string, client *http.Client) (*MesosTask, error) {
