@@ -12,10 +12,15 @@ import (
 // InitRoutes inits the v1 logging routes
 func InitRoutes(v2 *mux.Router, cfg *config.Config, client *http.Client, nodeInfo nodeutil.NodeInfo) {
 	handler := http.HandlerFunc(readFilesAPI)
-	wrapped := middleware.MesosFileReader(handler, client, nodeInfo)
+	wrapped := middleware.MesosFileReader(handler, cfg, client, nodeInfo)
 
-	v2.Path("/task/{containerID}/{frameworkID}/{executorID}").Handler(wrapped).Methods("GET")
+	v2.Path("/task/frameworks/{frameworkID}/executors/{executorID}/runs/{containerID}/{file}").Handler(wrapped).Methods("GET")
+	v2.Path("/task/frameworks/{frameworkID}/executors/{executorID}/runs/{containerID}/tasks/{taskPath}/{file}").Handler(wrapped).Methods("GET")
+
 	v2.Path("/task/{taskID}").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		discover(w, req, client)
+		discover(w, req, nodeInfo)
+	})
+	v2.Path("/task/{taskID}/{file}").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		discover(w, req, nodeInfo)
 	})
 }

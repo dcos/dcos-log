@@ -72,6 +72,11 @@ func readFilesAPI(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if req.Header.Get("Accept") != "text/event-stream" {
+		io.Copy(w, r)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/event-stream")
 
 	// Set response headers.

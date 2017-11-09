@@ -1,149 +1,76 @@
 package v2
 
 import (
+	"context"
 	"net/http"
-
-	"encoding/json"
 	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
-	"strings"
+	"github.com/dcos/dcos-go/dcos/nodeutil"
 )
 
 const (
 	prefix = "/system/v1/agent"
 )
 
-type MesosTask struct {
-	ID          string
-	AgentID     string
-	FrameworkID string
-	ContainerID string
-	ExecutorID  string
-}
 
-func (mt MesosTask) validate() error {
-	if mt.ContainerID == "" || mt.AgentID == "" || mt.FrameworkID == "" || mt.ExecutorID == "" {
-		err := fmt.Errorf("fields cannot be empty: %+v", mt)
-		logrus.Error(err)
-		return err
-	}
-	return nil
-}
-
-// URL returns a string with URL to an agent that runs the given task.
-func (mt MesosTask) URL() (string, error) {
-	if err := mt.validate(); err != nil {
-		return "", err
+func redirectURL(id *nodeutil.CanonicalTaskID, file string) (string, error) {
+	// find if the task is standalone of a pod.
+	isPod := id.ExecutorID != ""
+	executorID := id.ExecutorID
+	if !isPod {
+		executorID = id.ID
 	}
 
-	// /system/v1/agent/<agent-id>/logs/v2/stream/<agent-id>/<framework-id>/<executor-id>/<container-id>
-	taskLogURL := fmt.Sprintf("%s/%s/logs/v2/task/%s/%s/%s", prefix, mt.AgentID, mt.ContainerID, mt.FrameworkID, mt.ExecutorID)
-	logrus.Infof("built URL: %s", taskLogURL)
+	// take the last element
+	taskID := id.ContainerIDs[len(id.ContainerIDs) - 1]
+	taskLogURL := fmt.Sprintf("%s/%s/logs/v2/task/frameworks/%s/executors/%s/runs/%s/", prefix, id.AgentID,
+		id.FrameworkID, executorID, taskID)
+
+	if isPod {
+		taskLogURL += fmt.Sprintf("/tasks/%s/%s", id.ID, file)
+	} else {
+		taskLogURL += file
+	}
+
 	return taskLogURL, nil
 }
 
-func discover(w http.ResponseWriter, req *http.Request, client *http.Client) {
-	taskID := mux.Vars(req)["taskID"]
+func discover(w http.ResponseWriter, req *http.Request, nodeInfo nodeutil.NodeInfo) {
+	vars := mux.Vars(req)
+	taskID := vars["taskID"]
+	file := vars["file"]
+
+	if file == "" {
+		file = "stdout"
+	}
+
 	if taskID == "" {
 		logrus.Error("taskID is empty")
 		http.Error(w, "taskID is empty", http.StatusInternalServerError)
 		return
 	}
 
-	task, err := getTaskDetails(taskID, client)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	canonicalTaskID, err := nodeInfo.TaskCanonicalID(ctx, taskID)
 	if err != nil {
-		logrus.Errorf("invalid task id: %s", taskID)
-		http.Error(w, "invalid task id: "+taskID, http.StatusBadRequest)
+		errMsg := fmt.Sprintf("unable to get canonical task ID: %s", err)
+		logrus.Error(errMsg)
+		http.Error(w, errMsg, http.StatusInternalServerError)
 		return
 	}
 
-	taskURL, err := task.URL()
+	taskURL, err := redirectURL(canonicalTaskID, file)
 	if err != nil {
-		logrus.Errorf("unable to validate URL: %s", err)
-		http.Error(w, "unable to validate URL: "+err.Error(), http.StatusInternalServerError)
+		errMsg := fmt.Sprintf("unable to build redirect URL: %s", err)
+		logrus.Error(errMsg)
+		http.Error(w, errMsg, http.StatusInternalServerError)
 		return
 	}
 
 	http.Redirect(w, req, taskURL, http.StatusSeeOther)
-	//http.Redirect(w, req, taskURL, http.StatusTemporaryRedirect)
 }
 
-func getTaskDetails(taskID string, client *http.Client) (*MesosTask, error) {
-	resp, err := client.Get("http://leader.mesos:5050/state")
-	if err != nil {
-		logrus.Errorf("unable to get state from leader.mesos: %s", err)
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var mesosResponse MesosResponse
-	if err := json.NewDecoder(resp.Body).Decode(&mesosResponse); err != nil {
-		return nil, err
-	}
-
-	return findTaskInMesosResponse(taskID, mesosResponse)
-}
-
-func findTaskInMesosResponse(taskID string, mr MesosResponse) (*MesosTask, error) {
-	// find marathon framework
-	for _, framewok := range mr.Frameworks {
-		if framewok.Name != "marathon" {
-			continue
-		}
-
-		// find the right task
-		for _, task := range framewok.Tasks {
-			if task.Name != taskID || !strings.Contains(task.ID, taskID) {
-				continue
-			}
-
-			mt := &MesosTask{
-				AgentID:     task.SlaveID,
-				FrameworkID: task.FrameworkID,
-				ExecutorID:  task.ID,
-			}
-
-			// find container ID
-			if len(task.Statuses) == 0 {
-				logrus.Errorf("invalid mesos response: %+v", mr)
-				return nil, fmt.Errorf("invalid mesos response: %+v", mr)
-			}
-			mt.ContainerID = task.Statuses[0].ContainerStatus.ContainerID.Value
-			return mt, nil
-		}
-	}
-
-	return nil, fmt.Errorf("task %s not found", taskID)
-}
-
-type MesosResponse struct {
-	Frameworks []Framework `json:"frameworks"`
-}
-
-type Framework struct {
-	Name  string `json:"name"`
-	Tasks []Task `json:"tasks"`
-}
-
-type Task struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	FrameworkID string `json:"framework_id"`
-	ExecutorID  string `json:"executor_id"`
-	SlaveID     string `json:"slave_id"`
-	State       string `json:"state"`
-
-	Statuses []Status `json:"statuses"`
-}
-
-type Status struct {
-	State           string          `json:"state"`
-	ContainerStatus ContainerStatus `json:"container_status"`
-}
-
-type ContainerStatus struct {
-	ContainerID struct {
-		Value string `json:"value"`
-	} `json:"container_id"`
-}

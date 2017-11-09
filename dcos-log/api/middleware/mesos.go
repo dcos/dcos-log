@@ -11,6 +11,10 @@ import (
 	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
 	"strconv"
 	"io"
+	"github.com/dcos/dcos-log/dcos-log/config"
+	"time"
+	"net"
+	"github.com/dcos/dcos-go/dcos"
 )
 
 type key int
@@ -35,27 +39,35 @@ func FromContext(ctx context.Context) (io.Reader, error) {
 	return reader, nil
 }
 
-func MesosFileReader(next http.Handler, client *http.Client, nodeInfo nodeutil.NodeInfo) http.Handler {
+func MesosFileReader(next http.Handler, cfg *config.Config, client *http.Client, nodeInfo nodeutil.NodeInfo) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		scheme := "http"
+		if cfg.FlagAuth {
+			scheme = "https"
+		}
+
 		vars := mux.Vars(r)
 		frameworkID := vars["frameworkID"]
 		executorID := vars["executorID"]
 		containerID := vars["containerID"]
+		taskPath := vars["taskPath"]
+		file := vars["file"]
 
 		token, err := GetAuthFromRequest(r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Token error: %s", err.Error()), http.StatusUnauthorized)
 			return
 		}
-		logrus.Infof("got token: %s", token)
 
 		header := http.Header{}
 		header.Set("Authorization", token)
 
-		logrus.Infof("nodeInfo: %s", nodeInfo)
-		mesosID, err := nodeInfo.MesosID(nodeutil.NewContextWithHeaders(context.TODO(), header))
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		mesosID, err := nodeInfo.MesosID(nodeutil.NewContextWithHeaders(ctx, header))
 		if err != nil {
-			http.Error(w, "Unable to get mesosID: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, "unable to get mesosID: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -66,8 +78,8 @@ func MesosFileReader(next http.Handler, client *http.Client, nodeInfo nodeutil.N
 		}
 
 		masterURL := url.URL{
-			Scheme: "http",
-			Host: fmt.Sprintf("%s:%d", ip, 5051),
+			Scheme: scheme,
+			Host: net.JoinHostPort(ip.String(), strconv.Itoa(dcos.PortMesosAgent)),
 			Path: "/files/read",
 		}
 
@@ -83,7 +95,13 @@ func MesosFileReader(next http.Handler, client *http.Client, nodeInfo nodeutil.N
 			opts = append(opts, reader.OptOffset(offset))
 		}
 
-		reader, err := reader.NewLineReader(client, masterURL, mesosID, frameworkID, executorID, containerID, opts...)
+		defaultFormatter := reader.LineFormat
+		if r.Header.Get("Accept") == "text/event-stream" {
+			defaultFormatter = reader.SSEFormat
+		}
+
+		reader, err := reader.NewLineReader(client, masterURL, mesosID, frameworkID, executorID, containerID,
+			taskPath, file, defaultFormatter, opts...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logrus.Errorf("unable to initialize files API reader: %s", err)

@@ -39,23 +39,26 @@ func notEmpty(args []string) error {
 }
 
 // NewLineReader is a ReadManager constructor.
-//func NewLineReader(masterURL *url.URL, client *http.Client, file, agentID, frameworkID, executorID, containerID string,
-//	h http.Header, n int) (*ReadManager, error) {
-func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID, executorID, containerID string, opts ...Option) (*ReadManager, error) {
+func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID, executorID, containerID, taskPath, file string,
+	format Formatter, opts ...Option) (*ReadManager, error) {
 
 	// make sure the required parameters are set properly
 	if err := notEmpty([]string{agentID, frameworkID, executorID, containerID}); err != nil {
 		return nil, err
 	}
 
+	sandboxPath := fmt.Sprintf("/var/lib/mesos/slave/slaves/%s/frameworks/%s/executors/%s/runs/%s/", agentID, frameworkID, executorID, containerID)
+	if taskPath != "" {
+		sandboxPath += fmt.Sprintf("tasks/%s/", taskPath)
+	}
+
 	rm := &ReadManager{
 		client: client,
 
-		File:         "stdout",
+		File:         file,
 		readEndpoint: masterURL,
-		sandboxPath: fmt.Sprintf("/var/lib/mesos/slave/slaves/%s/frameworks/%s/executors/%s/runs/%s/",
-			agentID, frameworkID, executorID, containerID),
-		formatFn: sseFormat,
+		sandboxPath:  sandboxPath,
+		formatFn:     format,
 	}
 
 	for _, opt := range opts {
