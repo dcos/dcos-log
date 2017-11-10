@@ -1,30 +1,33 @@
 package middleware
 
 import (
-	"net/http"
-	"github.com/gorilla/mux"
-	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"context"
-	"net/url"
-	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
-	"strconv"
+	"fmt"
 	"io"
-	"github.com/dcos/dcos-log/dcos-log/config"
-	"time"
 	"net"
+	"net/http"
+	"net/url"
+	"strconv"
+	"time"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/dcos/dcos-go/dcos"
+	"github.com/dcos/dcos-go/dcos/nodeutil"
+	"github.com/dcos/dcos-log/dcos-log/config"
+	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
+	"github.com/gorilla/mux"
 )
 
 type key int
 
 var mesosFilesAPIKey = 1
 
+// WithFilesAPIContext ...
 func WithFilesAPIContext(ctx context.Context, r io.Reader) context.Context {
 	return context.WithValue(ctx, mesosFilesAPIKey, r)
 }
 
+// FromContext ...
 func FromContext(ctx context.Context) (io.Reader, error) {
 	instance := ctx.Value(mesosFilesAPIKey)
 	if instance == nil {
@@ -39,6 +42,7 @@ func FromContext(ctx context.Context) (io.Reader, error) {
 	return reader, nil
 }
 
+// MesosFileReader ...
 func MesosFileReader(next http.Handler, cfg *config.Config, client *http.Client, nodeInfo nodeutil.NodeInfo) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		scheme := "http"
@@ -79,8 +83,8 @@ func MesosFileReader(next http.Handler, cfg *config.Config, client *http.Client,
 
 		masterURL := url.URL{
 			Scheme: scheme,
-			Host: net.JoinHostPort(ip.String(), strconv.Itoa(dcos.PortMesosAgent)),
-			Path: "/files/read",
+			Host:   net.JoinHostPort(ip.String(), strconv.Itoa(dcos.PortMesosAgent)),
+			Path:   "/files/read",
 		}
 
 		opts := []reader.Option{reader.OptHeaders(header), reader.OptStream(true)}

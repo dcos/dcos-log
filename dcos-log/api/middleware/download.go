@@ -20,7 +20,7 @@ func (w gzipResponseWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-// DownloadGzippedContentMiddleware is a middleware which sets Content-disposition header and makes a postfix
+// DownloadGzippedContent is a middleware which sets Content-disposition header and makes a postfix
 // for a downloadable item.
 func DownloadGzippedContent(next http.Handler, prefix string, vars ...string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

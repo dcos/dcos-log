@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/dcos/dcos-go/dcos/nodeutil"
+	"github.com/dcos/dcos-log/dcos-log/api/middleware"
 	"github.com/dcos/dcos-log/dcos-log/config"
 	"github.com/gorilla/mux"
-	"github.com/dcos/dcos-log/dcos-log/api/middleware"
 )
 
 // InitRoutes inits the v1 logging routes

@@ -22,6 +22,7 @@ type response struct {
 	Offset int    `json:"offset"`
 }
 
+// ErrEmptyParam ...
 var ErrEmptyParam = errors.New("args cannot be empty")
 
 func notEmpty(args []string) error {
@@ -112,10 +113,14 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 	return rm, nil
 }
 
+// ReadDirection ...
 type ReadDirection int
 
 const (
+	// TopToBottom ...
 	TopToBottom ReadDirection = iota
+
+	// BottomToTop ...
 	BottomToTop
 )
 
@@ -182,6 +187,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	return resp.Offset, nil
 }
 
+// Modifier ...
 type Modifier func(s string) string
 
 func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier Modifier) ([]Line, int, error) {
@@ -232,30 +238,33 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier Mo
 	return linesWithOffset, delta, nil
 }
 
-func (r *ReadManager) Prepand(s Line) {
-	old := r.lines
-	r.lines = append([]Line{s}, old...)
+// Prepand ...
+func (rm *ReadManager) Prepand(s Line) {
+	old := rm.lines
+	rm.lines = append([]Line{s}, old...)
 }
 
-func (r *ReadManager) Pop() *Line {
-	old := *r
+// Pop ...
+func (rm *ReadManager) Pop() *Line {
+	old := *rm
 	n := len(old.lines)
 	if n == 0 {
 		return nil
 	}
 
 	x := old.lines[n-1]
-	r.lines = old.lines[0 : n-1]
+	rm.lines = old.lines[0 : n-1]
 	return &x
 }
 
-func (r *ReadManager) Read(b []byte) (int, error) {
-	if !r.stream && r.readLines == r.n {
+// Read ...
+func (rm *ReadManager) Read(b []byte) (int, error) {
+	if !rm.stream && rm.readLines == rm.n {
 		return 0, io.EOF
 	}
 
-	if len(r.lines) == 0 {
-		lines, delta, err := r.read(context.TODO(), r.offset, chunkSize, nil)
+	if len(rm.lines) == 0 {
+		lines, delta, err := rm.read(context.TODO(), rm.offset, chunkSize, nil)
 		if err != nil {
 			return 0, err
 		}
@@ -263,25 +272,25 @@ func (r *ReadManager) Read(b []byte) (int, error) {
 		if len(lines) > 1 {
 			linesLen := 0
 			for _, line := range lines {
-				r.Prepand(line)
+				rm.Prepand(line)
 				linesLen += len(line.Message) + 1
 			}
 
 			if linesLen < chunkSize {
-				r.offset = r.offset + linesLen - 1
+				rm.offset = rm.offset + linesLen - 1
 			} else {
-				r.offset = (r.offset + chunkSize) - delta - 1
+				rm.offset = (rm.offset + chunkSize) - delta - 1
 			}
 		}
 	}
 
-	line := r.Pop()
+	line := rm.Pop()
 	if line == nil || line.Message == "" {
 		return 0, io.EOF
 	}
 
-	r.readLines++
-	return strings.NewReader(r.formatFn(*line)).Read(b)
+	rm.readLines++
+	return strings.NewReader(rm.formatFn(*line)).Read(b)
 }
 
 func reverse(s string) string {

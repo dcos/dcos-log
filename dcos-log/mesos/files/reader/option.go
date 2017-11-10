@@ -8,6 +8,7 @@ import (
 // Option ...
 type Option func(*ReadManager) error
 
+// OptLines ...
 func OptLines(n int) Option {
 	return func(rm *ReadManager) error {
 		rm.n = n
@@ -15,6 +16,7 @@ func OptLines(n int) Option {
 	}
 }
 
+// OptFile ...
 func OptFile(f string) Option {
 	return func(rm *ReadManager) error {
 		rm.File = f
@@ -22,6 +24,7 @@ func OptFile(f string) Option {
 	}
 }
 
+// OptHeaders ...
 func OptHeaders(h http.Header) Option {
 	return func(rm *ReadManager) error {
 		rm.header = h
@@ -29,6 +32,7 @@ func OptHeaders(h http.Header) Option {
 	}
 }
 
+// OptReadDirection ...
 func OptReadDirection(r ReadDirection) Option {
 	return func(rm *ReadManager) error {
 		rm.readDirection = r
@@ -36,6 +40,7 @@ func OptReadDirection(r ReadDirection) Option {
 	}
 }
 
+// OptStream ...
 func OptStream(stream bool) Option {
 	return func(rm *ReadManager) error {
 		rm.stream = stream
@@ -43,6 +48,7 @@ func OptStream(stream bool) Option {
 	}
 }
 
+// OptOffset ...
 func OptOffset(offset int) Option {
 	return func(rm *ReadManager) error {
 		if offset < 0 {

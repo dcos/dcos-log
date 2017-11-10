@@ -2,18 +2,17 @@ package v2
 
 import (
 	"context"
-	"net/http"
 	"fmt"
+	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/gorilla/mux"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
+	"github.com/gorilla/mux"
 )
 
 const (
 	prefix = "/system/v1/agent"
 )
-
 
 func redirectURL(id *nodeutil.CanonicalTaskID, file string) (string, error) {
 	// find if the task is standalone of a pod.
@@ -24,7 +23,7 @@ func redirectURL(id *nodeutil.CanonicalTaskID, file string) (string, error) {
 	}
 
 	// take the last element
-	taskID := id.ContainerIDs[len(id.ContainerIDs) - 1]
+	taskID := id.ContainerIDs[len(id.ContainerIDs)-1]
 	taskLogURL := fmt.Sprintf("%s/%s/logs/v2/task/frameworks/%s/executors/%s/runs/%s/", prefix, id.AgentID,
 		id.FrameworkID, executorID, taskID)
 
@@ -58,7 +57,7 @@ func discover(w http.ResponseWriter, req *http.Request, nodeInfo nodeutil.NodeIn
 	// try to get the canonical ID for a running task first.
 	var (
 		canonicalTaskID *nodeutil.CanonicalTaskID
-		err error
+		err             error
 	)
 
 	// TODO: expose this option to a user.
@@ -86,4 +85,3 @@ func discover(w http.ResponseWriter, req *http.Request, nodeInfo nodeutil.NodeIn
 
 	http.Redirect(w, req, taskURL, http.StatusSeeOther)
 }
-
