@@ -57,7 +57,7 @@ type NodeInfo interface {
 	IsLeader() (bool, error)
 	MesosID(context.Context) (string, error)
 	ClusterID() (string, error)
-	TaskCanonicalID(context.Context, string) (*CanonicalTaskID, error)
+	TaskCanonicalID(ctx context.Context, task string, completed bool) (*CanonicalTaskID, error)
 }
 
 // CanonicalTaskID is a unique task id.
@@ -374,7 +374,7 @@ func (d *dcosInfo) state(ctx context.Context) (state State, err error) {
 }
 
 // TaskCanonicalID return a CanonicalTaskID for a given task.
-func (d *dcosInfo) TaskCanonicalID(ctx context.Context, task string) (*CanonicalTaskID, error) {
+func (d *dcosInfo) TaskCanonicalID(ctx context.Context, task string, completed bool) (*CanonicalTaskID, error) {
 	state, err := d.state(ctx)
 	if err != nil {
 		return nil, err
@@ -382,7 +382,12 @@ func (d *dcosInfo) TaskCanonicalID(ctx context.Context, task string) (*Canonical
 
 	var foundTasks []Task
 	for _, framework := range state.Frameworks {
-		for _, t := range framework.Tasks {
+		currentTasks := framework.Tasks
+		if completed {
+			currentTasks = framework.CompletedTasks
+		}
+
+		for _, t := range currentTasks {
 			if t.Name != task && !strings.Contains(t.ID, task) {
 				continue
 			}

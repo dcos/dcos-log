@@ -22,11 +22,12 @@ type Slave struct {
 
 // Framework is a field in state.json
 type Framework struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	PID   string `json:"pid"`
-	Role  string `json:"role"`
-	Tasks []Task `json:"tasks"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	PID            string `json:"pid"`
+	Role           string `json:"role"`
+	Tasks          []Task `json:"tasks"`
+	CompletedTasks []Task `json:"completed_tasks"`
 }
 
 // Task is a field in state.json
