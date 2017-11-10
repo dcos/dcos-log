@@ -55,7 +55,20 @@ func discover(w http.ResponseWriter, req *http.Request, nodeInfo nodeutil.NodeIn
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	canonicalTaskID, err := nodeInfo.TaskCanonicalID(ctx, taskID)
+	// try to get the canonical ID for a running task first.
+	var (
+		canonicalTaskID *nodeutil.CanonicalTaskID
+		err error
+	)
+
+	// TODO: expose this option to a user.
+	for _, completed := range []bool{false, true} {
+		canonicalTaskID, err = nodeInfo.TaskCanonicalID(ctx, taskID, completed)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		errMsg := fmt.Sprintf("unable to get canonical task ID: %s", err)
 		logrus.Error(errMsg)

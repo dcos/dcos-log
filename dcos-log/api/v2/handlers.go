@@ -97,7 +97,7 @@ func readFilesAPI(w http.ResponseWriter, req *http.Request) {
 				logrus.Debugf("Closing a client connection. Request URI: %s", req.RequestURI)
 				return
 			}
-		case <-time.After(time.Second):
+		case <-time.After(time.Microsecond*100):
 			{
 				io.Copy(w, r)
 				f.Flush()
