@@ -2,116 +2,108 @@ package middleware
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"net"
 	"net/http"
-	"net/url"
-	"strconv"
-	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"github.com/dcos/dcos-log/dcos-log/config"
-	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
-	"github.com/gorilla/mux"
 )
 
 type key int
 
-var mesosFilesAPIKey = 1
+var (
+	cfgKey        key
+	httpClientKey key = 1
+	nodeInfoKey   key = 2
+	tokenKey      key = 3
+)
 
-// WithFilesAPIContext ...
-func WithFilesAPIContext(ctx context.Context, r io.Reader) context.Context {
-	return context.WithValue(ctx, mesosFilesAPIKey, r)
+// withKeyContext returns a context with an encapsulated object by a key.
+func withKeyContext(ctx context.Context, k key, obj interface{}) context.Context {
+	return context.WithValue(ctx, k, obj)
 }
 
-// FromContext ...
-func FromContext(ctx context.Context) (io.Reader, error) {
-	instance := ctx.Value(mesosFilesAPIKey)
-	if instance == nil {
-		return nil, fmt.Errorf("context does not hold mesosFIlesAPIKey")
-	}
+// fromKeyContext returns an object from a context by a key.
+func fromContextByKey(ctx context.Context, k key) (interface{}, bool) {
+	instance := ctx.Value(k)
+	return instance, instance != nil
+}
 
-	reader, ok := instance.(io.Reader)
+// WithConfigContext wraps a config object into context.
+func WithConfigContext(ctx context.Context, cfg *config.Config) context.Context {
+	return withKeyContext(ctx, cfgKey, cfg)
+}
+
+// FromContextConfig returns a config object from a context
+func FromContextConfig(ctx context.Context) (cfg *config.Config, ok bool) {
+	instance, ok := fromContextByKey(ctx, cfgKey)
 	if !ok {
-		return nil, fmt.Errorf("context does not hold an instance of mesos files API reader")
+		return nil, ok
 	}
 
-	return reader, nil
+	cfg, ok = instance.(*config.Config)
+	return cfg, ok
 }
 
-// MesosFileReader ...
-func MesosFileReader(next http.Handler, cfg *config.Config, client *http.Client, nodeInfo nodeutil.NodeInfo) http.Handler {
+// WithHTTPClientContext wraps a *http.Client object into context.
+func WithHTTPClientContext(ctx context.Context, client *http.Client) context.Context {
+	return withKeyContext(ctx, httpClientKey, client)
+}
+
+// FromContextHTTPClient returns an *http.Client object from a context
+func FromContextHTTPClient(ctx context.Context) (client *http.Client, ok bool) {
+	instance, ok := fromContextByKey(ctx, httpClientKey)
+	if !ok {
+		return nil, ok
+	}
+
+	client, ok = instance.(*http.Client)
+	return client, ok
+}
+
+// WithNodeInfoContext wraps the NodeInfo object into context.
+func WithNodeInfoContext(ctx context.Context, nodeInfo nodeutil.NodeInfo) context.Context {
+	return withKeyContext(ctx, nodeInfoKey, nodeInfo)
+}
+
+// FromContextNodeInfo returns a nodeInfo object from a context.
+func FromContextNodeInfo(ctx context.Context) (nodeInfo nodeutil.NodeInfo, ok bool) {
+	instance, ok := fromContextByKey(ctx, nodeInfoKey)
+	if !ok {
+		return nil, ok
+	}
+
+	nodeInfo, ok = instance.(nodeutil.NodeInfo)
+	return nodeInfo, ok
+}
+
+// FromContextToken returns a token string from a context if available.
+func FromContextToken(ctx context.Context) (string, bool) {
+	instance, ok := fromContextByKey(ctx, tokenKey)
+	if !ok {
+		return "", ok
+	}
+
+	token, ok := instance.(*string)
+	return *token, ok
+}
+
+// Wrapped ...
+func Wrapped(next http.Handler, cfg *config.Config, client *http.Client, nodeInfo nodeutil.NodeInfo) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		scheme := "http"
-		if cfg.FlagAuth {
-			scheme = "https"
-		}
+		ctx := r.Context()
+		ctx = WithConfigContext(ctx, cfg)
+		ctx = WithHTTPClientContext(ctx, client)
+		ctx = WithNodeInfoContext(ctx, nodeInfo)
 
-		vars := mux.Vars(r)
-		frameworkID := vars["frameworkID"]
-		executorID := vars["executorID"]
-		containerID := vars["containerID"]
-		taskPath := vars["taskPath"]
-		file := vars["file"]
-
+		// wrap the token string is available
 		token, err := GetAuthFromRequest(r)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Token error: %s", err.Error()), http.StatusUnauthorized)
-			return
+		if err == nil && token != "" {
+			ctx = withKeyContext(ctx, tokenKey, &token)
+		} else {
+			logrus.Warnf("Authorization token not found: %s", err)
 		}
 
-		header := http.Header{}
-		header.Set("Authorization", token)
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
-
-		mesosID, err := nodeInfo.MesosID(nodeutil.NewContextWithHeaders(ctx, header))
-		if err != nil {
-			http.Error(w, "unable to get mesosID: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		ip, err := nodeInfo.DetectIP()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		masterURL := url.URL{
-			Scheme: scheme,
-			Host:   net.JoinHostPort(ip.String(), strconv.Itoa(dcos.PortMesosAgent)),
-			Path:   "/files/read",
-		}
-
-		opts := []reader.Option{reader.OptHeaders(header), reader.OptStream(true)}
-		lastEventID := r.Header.Get("Last-Event-ID")
-		if lastEventID != "" {
-			offset, err := strconv.Atoi(lastEventID)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("invalid Last-Event-ID: %s", err.Error()), http.StatusInternalServerError)
-				return
-			}
-
-			opts = append(opts, reader.OptOffset(offset))
-		}
-
-		defaultFormatter := reader.LineFormat
-		if r.Header.Get("Accept") == "text/event-stream" {
-			defaultFormatter = reader.SSEFormat
-		}
-
-		reader, err := reader.NewLineReader(client, masterURL, mesosID, frameworkID, executorID, containerID,
-			taskPath, file, defaultFormatter, opts...)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			logrus.Errorf("unable to initialize files API reader: %s", err)
-			return
-		}
-
-		next.ServeHTTP(w, r.WithContext(WithFilesAPIContext(r.Context(), reader)))
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

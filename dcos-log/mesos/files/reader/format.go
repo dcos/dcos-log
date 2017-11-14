@@ -2,6 +2,7 @@ package reader
 
 import "fmt"
 
+// Formatter is an interface for formatter functions.
 type Formatter func(l Line) string
 
 // SSEFormat implement server sent events format.
