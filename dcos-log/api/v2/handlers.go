@@ -28,7 +28,8 @@ func ERROR(w http.ResponseWriter, msg string, code int) {
 	logrus.Errorf("%s; http code: %d", msg, code)
 }
 
-func readFilesAPI(w http.ResponseWriter, req *http.Request) {
+
+func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	cfg, ok := middleware.FromContextConfig(req.Context())
 	if !ok {
 		ERROR(w, "invalid context, unable to retrieve a config object", http.StatusInternalServerError)
@@ -88,7 +89,57 @@ func readFilesAPI(w http.ResponseWriter, req *http.Request) {
 		Path:   "/files/read",
 	}
 
-	opts := []reader.Option{reader.OptHeaders(header), reader.OptStream(true)}
+	opts := []reader.Option{reader.OptHeaders(header)}
+
+	var limit int
+	if limitStr := req.URL.Query().Get("limit"); limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil {
+			ERROR(w, "unable to parse integer " + limitStr, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if limit > 0 {
+		opts = append(opts, reader.OptLines(limit))
+	}
+
+	cursor := -1
+	if cursorStr := req.URL.Query().Get("cursor"); cursorStr != "" {
+		if cursorStr == "BEG" {
+			cursor = 0
+		} else if cursorStr == "END" {
+			opts = append(opts, reader.OptReadFromEnd())
+		} else {
+			cursor, err = strconv.Atoi(cursorStr)
+			if err != nil {
+				ERROR(w, "unable to parse integer " +cursorStr, http.StatusBadRequest)
+				return
+			}
+
+			if cursor >= 0 {
+				opts = append(opts, reader.OptOffset(cursor))
+			}
+		}
+	}
+
+	var skip int
+	if skipStr := req.URL.Query().Get("skip"); skipStr != "" {
+		skip, err = strconv.Atoi(skipStr)
+		if err != nil {
+			ERROR(w, "unable to parse integer " +skipStr, http.StatusBadRequest)
+			return
+		}
+
+		if skip != 0 {
+			opts = append(opts, reader.OptSkip(skip))
+		}
+
+		if skip < 0 {
+			opts = append(opts, reader.OptReadDirection(reader.BottomToTop))
+		}
+	}
+
 	lastEventID := req.Header.Get("Last-Event-ID")
 	if lastEventID != "" {
 		offset, err := strconv.Atoi(lastEventID)
@@ -101,9 +152,13 @@ func readFilesAPI(w http.ResponseWriter, req *http.Request) {
 	}
 
 	defaultFormatter := reader.LineFormat
+	stream := false
 	if req.Header.Get("Accept") == "text/event-stream" {
 		defaultFormatter = reader.SSEFormat
+		stream = true
 	}
+
+	opts = append(opts, reader.OptStream(stream))
 
 	r, err := reader.NewLineReader(client, masterURL, mesosID, frameworkID, executorID, containerID,
 		taskPath, file, defaultFormatter, opts...)
@@ -114,8 +169,18 @@ func readFilesAPI(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Header.Get("Accept") != "text/event-stream" {
-		io.Copy(w, r)
-		return
+		for {
+			_, err := io.Copy(w, r)
+			switch err {
+			case nil:
+				return
+			case reader.ErrNoData:
+				continue
+			default:
+				logrus.Errorf("unexpected error while reading the logs: %s", err)
+				return
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -147,7 +212,7 @@ func readFilesAPI(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func redirectURL(id *nodeutil.CanonicalTaskID, file string) (string, error) {
+func redirectURL(id *nodeutil.CanonicalTaskID, file, RawQuery string) (string, error) {
 	// find if the task is standalone of a pod.
 	isPod := id.ExecutorID != ""
 	executorID := id.ExecutorID
@@ -164,6 +229,10 @@ func redirectURL(id *nodeutil.CanonicalTaskID, file string) (string, error) {
 		taskLogURL += fmt.Sprintf("/tasks/%s/%s", id.ID, file)
 	} else {
 		taskLogURL += file
+	}
+
+	if RawQuery != "" {
+		taskLogURL += "?" + RawQuery
 	}
 
 	return taskLogURL, nil
@@ -213,7 +282,7 @@ func discover(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	taskURL, err := redirectURL(canonicalTaskID, file)
+	taskURL, err := redirectURL(canonicalTaskID, file, req.URL.RawQuery)
 	if err != nil {
 		errMsg := fmt.Sprintf("unable to build redirect URL: %s", err)
 		ERROR(w, errMsg, http.StatusInternalServerError)
