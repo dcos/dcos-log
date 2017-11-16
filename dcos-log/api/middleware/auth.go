@@ -1,10 +1,8 @@
-package v1
+package middleware
 
 import (
-	"compress/gzip"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -18,9 +16,6 @@ import (
 )
 
 const (
-	// authCookieName is a token name passed by a browser in `Cookie` request header.
-	authCookieName = "dcos-acs-auth-cookie"
-
 	sandboxURLScheme  = "https"
 	sandboxPath       = "/files/browse"
 	sandboxBrowsePath = "/var/lib/mesos/slave/slaves"
@@ -29,7 +24,7 @@ const (
 	sandboxRuns       = "runs"
 )
 
-// ErrMissingToken is returned by getAuthFromRequest when JWT is missing.
+// ErrMissingToken is returned by GetAuthFromRequest when JWT is missing.
 var ErrMissingToken = errors.New("Missing token in auth request")
 
 func getSandboxURL(nodeInfo nodeutil.NodeInfo, role string) (*url.URL, error) {
@@ -62,8 +57,8 @@ func validateToken(t string) (string, error) {
 	return t, nil
 }
 
-// getAuthFromRequest will try to extract JWT from Authorization header.
-func getAuthFromRequest(r *http.Request) (string, error) {
+// GetAuthFromRequest will try to extract JWT from Authorization header.
+func GetAuthFromRequest(r *http.Request) (string, error) {
 	// give priority to Authorization header
 	authorizationHeader := r.Header.Get("Authorization")
 	if authorizationHeader != "" {
@@ -73,7 +68,8 @@ func getAuthFromRequest(r *http.Request) (string, error) {
 	return "", ErrMissingToken
 }
 
-func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.NodeInfo, role string) http.Handler {
+// AuthMiddleware is a middleware that validates a user has a valid JWT to access the given endpoint.
+func AuthMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.NodeInfo, role string) http.Handler {
 	if nodeInfo == nil {
 		panic("nodeInfo cannot be nil")
 	}
@@ -81,9 +77,9 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// JWT is required to present in a request. The middleware will extract the token and try to access
 		// sandbox with it. We authorize the request if sandbox returns 200.
-		token, err := getAuthFromRequest(r)
+		token, err := GetAuthFromRequest(r)
 		if err != nil {
-			httpError(w, fmt.Sprintf("Token error: %s", err.Error()), http.StatusUnauthorized, r)
+			http.Error(w, fmt.Sprintf("Token error: %s", err.Error()), http.StatusUnauthorized)
 			return
 		}
 
@@ -95,13 +91,13 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 
 		// if we ended up in this handler without required mux variables, we are doing something wrong.
 		if frameworkID == "" || executorID == "" || containerID == "" {
-			httpError(w, "Missing mux variables `frameworkID`, `executorID` or `containerID`", http.StatusBadRequest, r)
+			http.Error(w, "Missing mux variables `frameworkID`, `executorID` or `containerID`", http.StatusBadRequest)
 			return
 		}
 
 		sandboxBaseURL, err := getSandboxURL(nodeInfo, role)
 		if err != nil {
-			httpError(w, "Unable to get sandboxBaseURL: "+err.Error(), http.StatusInternalServerError, r)
+			http.Error(w, "Unable to get sandboxBaseURL: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -110,7 +106,7 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 
 		mesosID, err := nodeInfo.MesosID(nodeutil.NewContextWithHeaders(nil, header))
 		if err != nil {
-			httpError(w, "Unable to get mesosID: "+err.Error(), http.StatusInternalServerError, r)
+			http.Error(w, "Unable to get mesosID: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -121,7 +117,7 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 
 		req, err := http.NewRequest("GET", sandboxBaseURL.String(), nil)
 		if err != nil {
-			httpError(w, "Invalid request: "+err.Error(), http.StatusInternalServerError, r)
+			http.Error(w, "Invalid request: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -129,7 +125,7 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 
 		resp, err := client.Do(req)
 		if err != nil {
-			httpError(w, "Could not make auth request: "+err.Error(), http.StatusInternalServerError, r)
+			http.Error(w, "Could not make auth request: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -138,51 +134,9 @@ func authMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.No
 		resp.Body.Close()
 
 		if responseCode != http.StatusOK {
-			httpError(w, fmt.Sprintf("Auth URL %s. Invalid auth response code: %d", sandboxBaseURL.String(), responseCode), responseCode, r)
+			http.Error(w, fmt.Sprintf("Auth URL %s. Invalid auth response code: %d", sandboxBaseURL.String(), responseCode), responseCode)
 			return
 		}
 		next.ServeHTTP(w, r)
-	})
-}
-
-// Gzip Compression
-type gzipResponseWriter struct {
-	io.Writer
-	http.ResponseWriter
-}
-
-func (w gzipResponseWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
-}
-
-func downloadGzippedContentMiddleware(next http.Handler, prefix string, vars ...string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// log name lazy evaluation
-		filenameParts := []string{prefix}
-		muxVars := mux.Vars(r)
-		for _, v := range vars {
-			if muxVar := muxVars[v]; muxVar != "" {
-				filenameParts = append(filenameParts, muxVar)
-			}
-		}
-
-		// get user provided postfix
-		if err := r.ParseForm(); err == nil {
-			if postfix := r.Form.Get("postfix"); postfix != "" {
-				filenameParts = append(filenameParts, postfix)
-			}
-		}
-
-		filename := strings.Join(filenameParts, "-")
-		if filename == "" {
-			filename = "download"
-		}
-
-		f := fmt.Sprintf("%s.log.gz", filename)
-		w.Header().Add("Content-disposition", "attachment; filename="+f)
-		gz := gzip.NewWriter(w)
-		defer gz.Close()
-		gzw := gzipResponseWriter{Writer: gz, ResponseWriter: w}
-		next.ServeHTTP(gzw, r)
 	})
 }
