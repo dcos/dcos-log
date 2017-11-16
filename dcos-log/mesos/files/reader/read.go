@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -22,8 +24,14 @@ type response struct {
 	Offset int    `json:"offset"`
 }
 
-// ErrEmptyParam ...
-var ErrEmptyParam = errors.New("args cannot be empty")
+var (
+	// ErrEmptyParam ...
+	ErrEmptyParam = errors.New("args cannot be empty")
+
+	// ErrNoData is an error returned by Read(). It indicates that the buffer is empty
+	// and we need to request more data from mesos files API.
+	ErrNoData = errors.New("new data needed")
+)
 
 func notEmpty(args []string) error {
 	if len(args) == 0 {
@@ -71,31 +79,31 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 	}
 
 	if rm.readDirection == BottomToTop {
-		size, err := rm.fileLen(context.TODO())
-		if err != nil {
-			return nil, err
-		}
-
-		rm.offset = size
 		foundLines := 0
-		offset := size - chunkSize
+		offset := rm.offset - chunkSize
 		for {
 			// if the offset is 0 or negative value, the means we reached the top of the file.
 			// we can just set the offset to 0 and read the entire file
 			if offset < 1 {
-				rm.offset = 0
-				break
+				offset = 0
 			}
 
-			lines, delta, err := rm.read(context.TODO(), offset, chunkSize, reverse)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
+
+			lines, delta, err := rm.read(ctx, offset, chunkSize, reverse)
 			if err != nil {
+				cancel()
 				return nil, err
 			}
+			cancel()
+
+			// make skip a positive number
+			skip := rm.skip * -1
 
 			// if the required number of lines found, we need to calculate an offset
-			if foundLines+len(lines) >= rm.n {
-				diff := rm.n - foundLines
-				for i := len(lines) - diff; i < len(lines); i++ {
+			if foundLines+len(lines) >= skip {
+				diff := skip - foundLines
+				for i := 0; i <= diff; i++ {
 					rm.offset -= len(lines[i].Message) + 1
 				}
 				break
@@ -105,9 +113,14 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 				foundLines += len(lines)
 			}
 
-			offset -= chunkSize - delta //+ 7
+			offset -= chunkSize - delta
 			rm.offset = offset
 		}
+	}
+
+	// guard against negative offset
+	if rm.offset < 0 {
+		rm.offset = 0
 	}
 
 	return rm, nil
@@ -134,6 +147,8 @@ type ReadManager struct {
 
 	readDirection ReadDirection
 	n             int
+	skip          int
+	skipped       int
 	File          string
 
 	size   int
@@ -238,13 +253,13 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier Mo
 	return linesWithOffset, delta, nil
 }
 
-// Prepand ...
+// Prepand the lines to a buffer.
 func (rm *ReadManager) Prepand(s Line) {
 	old := rm.lines
 	rm.lines = append([]Line{s}, old...)
 }
 
-// Pop ...
+// Pop returns a line from the end of the buffer.
 func (rm *ReadManager) Pop() *Line {
 	old := *rm
 	n := len(old.lines)
@@ -257,14 +272,18 @@ func (rm *ReadManager) Pop() *Line {
 	return &x
 }
 
-// Read ...
+// Read implements io.Reader interface.
 func (rm *ReadManager) Read(b []byte) (int, error) {
-	if !rm.stream && rm.readLines == rm.n {
+start:
+	if !rm.stream && rm.n > 0 && rm.readLines == rm.n {
 		return 0, io.EOF
 	}
 
 	if len(rm.lines) == 0 {
-		lines, delta, err := rm.read(context.TODO(), rm.offset, chunkSize, nil)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
+		defer  cancel()
+
+		lines, delta, err := rm.read(ctx, rm.offset, chunkSize, nil)
 		if err != nil {
 			return 0, err
 		}
@@ -281,12 +300,19 @@ func (rm *ReadManager) Read(b []byte) (int, error) {
 			} else {
 				rm.offset = (rm.offset + chunkSize) - delta - 1
 			}
+		} else {
+			return 0, io.EOF
 		}
 	}
 
 	line := rm.Pop()
 	if line == nil || line.Message == "" {
-		return 0, io.EOF
+		return 0, ErrNoData
+	}
+
+	if rm.skip > 0 && rm.skipped < rm.skip {
+		rm.skipped++
+		goto start
 	}
 
 	rm.readLines++
