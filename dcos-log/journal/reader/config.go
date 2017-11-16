@@ -112,10 +112,7 @@ func OptionSince(d time.Duration) Option {
 			return ErrInvalidDuration
 		}
 		start := time.Now().Add(-d)
-		if err := r.Journal.SeekRealtimeUsec(uint64(start.UnixNano() / 1000)); err != nil {
-			return err
-		}
-		return nil
+		return r.Journal.SeekRealtimeUsec(uint64(start.UnixNano() / 1000))
 	}
 }
 
