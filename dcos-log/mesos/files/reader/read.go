@@ -99,8 +99,12 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 			}
 			cancel()
 
+			skip := rm.skip
+
 			// make skip a positive number
-			skip := rm.skip * -1
+			if skip < 0 {
+				skip = rm.skip * -1
+			}
 
 			// if the required number of lines found, we need to calculate an offset
 			if foundLines+len(lines) >= skip {
@@ -190,7 +194,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
-	// fmt.Println(newURL.String())
+	logrus.Info(newURL.String())
 	req, err := http.NewRequest("GET", newURL.String(), nil)
 	if err != nil {
 		return 0, err
@@ -255,6 +259,9 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier mo
 
 // Prepand the lines to a buffer.
 func (rm *ReadManager) Prepand(s Line) {
+	if s.Message == "" {
+		return
+	}
 	old := rm.lines
 	rm.lines = append([]Line{s}, old...)
 }
@@ -306,7 +313,7 @@ start:
 	}
 
 	line := rm.Pop()
-	if line == nil || line.Message == "" {
+	if line == nil {
 		return 0, ErrNoData
 	}
 
