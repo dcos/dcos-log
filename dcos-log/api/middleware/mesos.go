@@ -88,7 +88,7 @@ func FromContextToken(ctx context.Context) (string, bool) {
 	return *token, ok
 }
 
-// Wrapped ...
+// Wrapped wraps an http handler with values in a context.
 func Wrapped(next http.Handler, cfg *config.Config, client *http.Client, nodeInfo nodeutil.NodeInfo) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

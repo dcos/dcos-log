@@ -1,9 +1,9 @@
 package reader
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-	"context"
 	"time"
 )
 
@@ -72,7 +72,7 @@ func OptOffset(offset int) Option {
 // OptReadFromEnd moves the cursor to the end of file.
 func OptReadFromEnd() Option {
 	return func(rm *ReadManager) error {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer cancel()
 
 		offset, err := rm.fileLen(ctx)

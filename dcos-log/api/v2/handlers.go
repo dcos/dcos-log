@@ -28,7 +28,6 @@ func ERROR(w http.ResponseWriter, msg string, code int) {
 	logrus.Errorf("%s; http code: %d", msg, code)
 }
 
-
 func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	cfg, ok := middleware.FromContextConfig(req.Context())
 	if !ok {
@@ -95,7 +94,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if limitStr := req.URL.Query().Get("limit"); limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil {
-			ERROR(w, "unable to parse integer " + limitStr, http.StatusBadRequest)
+			ERROR(w, "unable to parse integer "+limitStr, http.StatusBadRequest)
 			return
 		}
 	}
@@ -113,7 +112,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 		} else {
 			cursor, err = strconv.Atoi(cursorStr)
 			if err != nil {
-				ERROR(w, "unable to parse integer " +cursorStr, http.StatusBadRequest)
+				ERROR(w, "unable to parse integer "+cursorStr, http.StatusBadRequest)
 				return
 			}
 
@@ -127,7 +126,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if skipStr := req.URL.Query().Get("skip"); skipStr != "" {
 		skip, err = strconv.Atoi(skipStr)
 		if err != nil {
-			ERROR(w, "unable to parse integer " +skipStr, http.StatusBadRequest)
+			ERROR(w, "unable to parse integer "+skipStr, http.StatusBadRequest)
 			return
 		}
 

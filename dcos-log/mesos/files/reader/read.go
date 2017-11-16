@@ -19,11 +19,6 @@ const (
 	chunkSize = 1 << 16
 )
 
-type response struct {
-	Data   string `json:"data"`
-	Offset int    `json:"offset"`
-}
-
 var (
 	// ErrEmptyParam ...
 	ErrEmptyParam = errors.New("args cannot be empty")
@@ -32,6 +27,13 @@ var (
 	// and we need to request more data from mesos files API.
 	ErrNoData = errors.New("new data needed")
 )
+
+type response struct {
+	Data   string `json:"data"`
+	Offset int    `json:"offset"`
+}
+
+type modifier func(s string) string
 
 func notEmpty(args []string) error {
 	if len(args) == 0 {
@@ -88,7 +90,7 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 				offset = 0
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 
 			lines, delta, err := rm.read(ctx, offset, chunkSize, reverse)
 			if err != nil {
@@ -126,18 +128,19 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 	return rm, nil
 }
 
-// ReadDirection ...
+// ReadDirection specifies the direction files API will be read.
 type ReadDirection int
 
 const (
-	// TopToBottom ...
+	// TopToBottom reads files API from top to bottom.
 	TopToBottom ReadDirection = iota
 
-	// BottomToTop ...
+	// BottomToTop reads files API from bottom to top.
 	BottomToTop
 )
 
-// ReadManager ...
+// ReadManager is a mesos files API reader. It reads builds the correct sandbox path to files
+// and implements io.Reader.
 // http://mesos.apache.org/documentation/latest/endpoints/files/read/
 type ReadManager struct {
 	client       *http.Client
@@ -202,10 +205,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	return resp.Offset, nil
 }
 
-// Modifier ...
-type Modifier func(s string) string
-
-func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier Modifier) ([]Line, int, error) {
+func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier modifier) ([]Line, int, error) {
 	v := url.Values{}
 	v.Add("path", rm.sandboxPath+rm.File)
 	v.Add("offset", strconv.Itoa(offset))
@@ -280,8 +280,8 @@ start:
 	}
 
 	if len(rm.lines) == 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
-		defer  cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer cancel()
 
 		lines, delta, err := rm.read(ctx, rm.offset, chunkSize, nil)
 		if err != nil {
