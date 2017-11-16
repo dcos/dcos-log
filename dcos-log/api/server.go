@@ -24,12 +24,13 @@ var defaultStateURL = url.URL{
 }
 
 func newNodeInfo(cfg *config.Config, client *http.Client) (nodeutil.NodeInfo, error) {
+	stateURL := defaultStateURL
 	if !cfg.FlagAuth {
-		return nil, nil
+		stateURL.Scheme = "http"
 	}
 
 	// if auth is enabled we will also make requests to mesos via https.
-	nodeInfo, err := nodeutil.NewNodeInfo(client, cfg.FlagRole, nodeutil.OptionMesosStateURL(defaultStateURL.String()))
+	nodeInfo, err := nodeutil.NewNodeInfo(client, cfg.FlagRole, nodeutil.OptionMesosStateURL(stateURL.String()))
 	if err != nil {
 		return nil, err
 	}
