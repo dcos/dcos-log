@@ -104,7 +104,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	opts := []reader.Option{reader.OptHeaders(header)}
 
 	var limit int
-	if limitStr := req.URL.Query().Get("limit"); limitStr != "" {
+	if limitStr := req.URL.Query().Get(limitParam); limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil {
 			ERROR(w, "unable to parse integer "+limitStr, http.StatusBadRequest)
@@ -117,10 +117,10 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	cursor := -1
-	if cursorStr := req.URL.Query().Get("cursor"); cursorStr != "" {
-		if cursorStr == "BEG" {
+	if cursorStr := req.URL.Query().Get(cursorParam); cursorStr != "" {
+		if cursorStr == cursorBegParam {
 			cursor = 0
-		} else if cursorStr == "END" {
+		} else if cursorStr == cursorEndParam {
 			opts = append(opts, reader.OptReadFromEnd())
 		} else {
 			cursor, err = strconv.Atoi(cursorStr)
@@ -136,7 +136,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var skip int
-	if skipStr := req.URL.Query().Get("skip"); skipStr != "" {
+	if skipStr := req.URL.Query().Get(skipParam); skipStr != "" {
 		skip, err = strconv.Atoi(skipStr)
 		if err != nil {
 			ERROR(w, "unable to parse integer "+skipStr, http.StatusBadRequest)
