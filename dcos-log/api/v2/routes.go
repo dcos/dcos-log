@@ -22,4 +22,10 @@ func InitRoutes(v2 *mux.Router, cfg *config.Config, client *http.Client, nodeInf
 
 	v2.Path("/task/{taskID}").Handler(wrappedDiscoverHandler).Methods("GET")
 	v2.Path("/task/{taskID}/file/{file}").Handler(wrappedDiscoverHandler).Methods("GET")
+
+	componentHandler := http.HandlerFunc(journalHandler)
+	wrappedComponentHandler := middleware.Wrapped(componentHandler, cfg, client, nodeInfo)
+
+	v2.Path("/component").Handler(wrappedComponentHandler).Methods("GET")
+	v2.Path("/component/{name}").Handler(wrappedComponentHandler).Methods("GET")
 }

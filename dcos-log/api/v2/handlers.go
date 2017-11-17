@@ -16,10 +16,22 @@ import (
 	"github.com/dcos/dcos-log/dcos-log/api/middleware"
 	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
 	"github.com/gorilla/mux"
+	jr "github.com/dcos/dcos-log/dcos-log/journal/reader"
+	"strings"
 )
 
 const (
 	prefix = "/system/v1/agent"
+)
+
+const (
+	skipParam = "skip"
+	cursorParam = "cursor"
+	limitParam = "limit"
+	filterParam = "filter"
+
+	cursorEndParam = "END"
+	cursorBegParam = "BEG"
 )
 
 // ERROR is a http.Error wrapper, that also emits an error to a console
@@ -290,4 +302,159 @@ func discover(w http.ResponseWriter, req *http.Request) {
 	}
 
 	http.Redirect(w, req, taskURL, http.StatusSeeOther)
+}
+
+func journalHandler(w http.ResponseWriter, r *http.Request) {
+	acceptHeader := r.Header.Get("Accept")
+	useSSE := acceptHeader == "text/event-stream"
+
+	// for streaming endpoints and SSE logs format we include id: CursorID before each log entry.
+	entryFormatter := jr.NewEntryFormatter(acceptHeader, useSSE)
+	var (
+		cursor string
+		err error
+		opts []jr.Option
+	)
+
+	if componentName := mux.Vars(r)["name"]; componentName != "" {
+		matches := []jr.JournalEntryMatch{
+			{
+				Field: "UNIT",
+				Value: componentName,
+			},
+			{
+				Field: "_SYSTEMD_UNIT",
+				Value: componentName,
+			},
+		}
+
+		opts = append(opts, jr.OptionMatchOR(matches))
+	}
+
+	// parse filters
+	if filters := r.URL.Query()[filterParam]; len(filters) > 0 {
+		var matches []jr.JournalEntryMatch
+		for _, filter := range filters {
+			filterArray := strings.Split(filter, ":")
+			if len(filterArray) != 2 {
+				ERROR(w, "incorrect filter parameter format, must be ?filer=key:value. Got "+filter, http.StatusBadRequest)
+				return
+			}
+
+			// all matches must uppercase
+			matches = append(matches, jr.JournalEntryMatch{
+				Field: strings.ToUpper(filterArray[0]),
+				Value: filterArray[1],
+			})
+		}
+
+		opts = append(opts, jr.OptionMatch(matches))
+	}
+
+	// we give priority to "Last-Event-ID" header over GET parameter.
+	lastEventID := r.Header.Get("Last-Event-ID")
+	if lastEventID != "" {
+		cursor = lastEventID
+	} else {
+		// get cursor parameter
+		cursor = r.URL.Query().Get(cursorParam)
+
+		// according to V2 API, BEG and END are valid cursors. And they are used in mesos files API reader.
+		// However journald API already implements the cursor movement with OptSkipPrev()
+		// ignore BEG and END options for now.
+		if cursor == cursorBegParam {
+			cursor = ""
+		} else if cursor == cursorEndParam {
+			opts = append(opts, jr.OptionSkipPrev(1))
+			cursor = ""
+		}
+
+		// parse the cursor parameter
+		if cursor != "" {
+			cursor, err = url.QueryUnescape(cursor)
+			if err != nil {
+				ERROR(w, "unable to un-escape cursor parameter: " + err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	if cursor != "" {
+		opts = append(opts, jr.OptionSeekCursor(cursor))
+	}
+
+	// parse the limit parameter
+	if limitStr := r.URL.Query().Get(limitParam); limitStr != "" {
+		limit, err := strconv.ParseUint(limitStr, 10, 64)
+		if err != nil {
+			ERROR(w, "unable to parse limit parameter: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		opts = append(opts, jr.OptionLimit(limit))
+	}
+
+	// parse skip parameter
+	if skipStr := r.URL.Query().Get(skipParam); skipStr != "" {
+		skip, err := strconv.Atoi(skipStr)
+		if err != nil {
+			ERROR(w, "unable to parse skip parameter: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if skip > 0 {
+			opts = append(opts, jr.OptionSkipNext(uint64(skip)))
+		} else {
+			// make skip positive number
+			skip *= -1
+			opts = append(opts, jr.OptionSkipPrev(uint64(skip)))
+		}
+	}
+
+	j, err := jr.NewReader(entryFormatter, opts...)
+	if err != nil {
+		ERROR(w, "unable to open journald: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Set response headers.
+	w.Header().Set("Content-Type", entryFormatter.GetContentType().String())
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Transfer-Encoding", "chunked")
+
+	if !useSSE{
+		b, err := io.Copy(w, j)
+		if err != nil {
+			ERROR(w, "unable to read the journal: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if b == 0 {
+			ERROR(w, "No match found", http.StatusNoContent)
+		}
+		return
+	}
+
+	w.Header().Set("X-Accel-Buffering", "no")
+	f := w.(http.Flusher)
+	notify := w.(http.CloseNotifier).CloseNotify()
+
+	f.Flush()
+	for {
+		select {
+		case <-notify:
+			{
+				logrus.Debugf("closing a client connection.")
+				return
+			}
+		case <-time.After(time.Second):
+			{
+				io.Copy(w, j)
+				f.Flush()
+			}
+		}
+	}
+
 }
