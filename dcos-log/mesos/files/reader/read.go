@@ -70,6 +70,12 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 		readEndpoint: masterURL,
 		sandboxPath:  sandboxPath,
 		formatFn:     format,
+
+		agentID: agentID,
+		frameworkID: frameworkID,
+		executorID: executorID,
+		containerID: containerID,
+		file: file,
 	}
 
 	for _, opt := range opts {
@@ -182,6 +188,13 @@ type ReadManager struct {
 	stream    bool
 
 	formatFn Formatter
+
+	agentID string
+	frameworkID string
+	executorID string
+	containerID string
+	taskPath string
+	file string
 }
 
 func (rm *ReadManager) do(req *http.Request) (*response, error) {
@@ -339,7 +352,7 @@ start:
 	}
 
 	rm.readLines++
-	return strings.NewReader(rm.formatFn(*line)).Read(b)
+	return strings.NewReader(rm.formatFn(*line, rm)).Read(b)
 }
 
 func reverse(s string) string {
