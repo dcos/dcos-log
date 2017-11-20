@@ -27,7 +27,7 @@ func InitRoutes(v1 *mux.Router, cfg *config.Config, client *http.Client, nodeInf
 
 	if cfg.FlagAuth {
 		newAuthMiddleware = func(h http.Handler) http.Handler {
-			return middleware.AuthMiddleware(h, client, nodeInfo, cfg.FlagRole)
+			return middleware.Auth(h, client, nodeInfo, cfg.FlagRole)
 		}
 	}
 

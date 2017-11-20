@@ -34,8 +34,13 @@ const (
 	cursorBegParam = "BEG"
 )
 
-// ERROR is a http.Error wrapper, that also emits an error to a console
-func ERROR(w http.ResponseWriter, msg string, code int) {
+const (
+	eventStreamContentType = "text/event-stream"
+)
+
+// TODO: pass a request to logError to enhance logging. (url, query parameters, any relevant headers, and so on)
+// logError is a http.Error wrapper, that also emits an error to a console
+func logError(w http.ResponseWriter, msg string, code int) {
 	http.Error(w, msg, code)
 	logrus.Errorf("%s; http code: %d", msg, code)
 }
@@ -43,19 +48,19 @@ func ERROR(w http.ResponseWriter, msg string, code int) {
 func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	cfg, ok := middleware.FromContextConfig(req.Context())
 	if !ok {
-		ERROR(w, "invalid context, unable to retrieve a config object", http.StatusInternalServerError)
+		logError(w, "invalid context, unable to retrieve a config object", http.StatusInternalServerError)
 		return
 	}
 
 	client, ok := middleware.FromContextHTTPClient(req.Context())
 	if !ok {
-		ERROR(w, "invalid context, unable to retrieve an *http.Client object", http.StatusInternalServerError)
+		logError(w, "invalid context, unable to retrieve an *http.Client object", http.StatusInternalServerError)
 		return
 	}
 
 	nodeInfo, ok := middleware.FromContextNodeInfo(req.Context())
 	if !ok {
-		ERROR(w, "invalid context, unable to retrieve a nodeInfo object", http.StatusInternalServerError)
+		logError(w, "invalid context, unable to retrieve a nodeInfo object", http.StatusInternalServerError)
 		return
 	}
 
@@ -73,7 +78,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	token, ok := middleware.FromContextToken(req.Context())
 	if !ok {
-		ERROR(w, "unable to get authorization header from a request", http.StatusUnauthorized)
+		logError(w, "unable to get authorization header from a request", http.StatusUnauthorized)
 		return
 	}
 
@@ -85,13 +90,13 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	mesosID, err := nodeInfo.MesosID(nodeutil.NewContextWithHeaders(ctx, header))
 	if err != nil {
-		ERROR(w, "unable to get mesosID: "+err.Error(), http.StatusInternalServerError)
+		logError(w, "unable to get mesosID: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	ip, err := nodeInfo.DetectIP()
 	if err != nil {
-		ERROR(w, err.Error(), http.StatusInternalServerError)
+		logError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -107,7 +112,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if limitStr := req.URL.Query().Get(limitParam); limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil {
-			ERROR(w, "unable to parse integer "+limitStr, http.StatusBadRequest)
+			logError(w, "unable to parse integer "+limitStr, http.StatusBadRequest)
 			return
 		}
 	}
@@ -125,7 +130,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 		} else {
 			cursor, err = strconv.Atoi(cursorStr)
 			if err != nil {
-				ERROR(w, "unable to parse integer "+cursorStr, http.StatusBadRequest)
+				logError(w, "unable to parse integer "+cursorStr, http.StatusBadRequest)
 				return
 			}
 
@@ -139,7 +144,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if skipStr := req.URL.Query().Get(skipParam); skipStr != "" {
 		skip, err = strconv.Atoi(skipStr)
 		if err != nil {
-			ERROR(w, "unable to parse integer "+skipStr, http.StatusBadRequest)
+			logError(w, "unable to parse integer "+skipStr, http.StatusBadRequest)
 			return
 		}
 
@@ -156,31 +161,27 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if lastEventID != "" {
 		offset, err := strconv.Atoi(lastEventID)
 		if err != nil {
-			ERROR(w, fmt.Sprintf("invalid Last-Event-ID: %s", err.Error()), http.StatusInternalServerError)
+			logError(w, fmt.Sprintf("invalid Last-Event-ID: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
 
 		opts = append(opts, reader.OptOffset(offset))
 	}
 
-	defaultFormatter := reader.LineFormat
-	stream := false
-	if req.Header.Get("Accept") == "text/event-stream" {
-		defaultFormatter = reader.SSEFormat
-		stream = true
+	formatter := reader.LineFormat
+	if req.Header.Get("Accept") == eventStreamContentType {
+		formatter = reader.SSEFormat
+		opts = append(opts, reader.OptStream(true))
 	}
 
-	opts = append(opts, reader.OptStream(stream))
-
 	r, err := reader.NewLineReader(client, masterURL, mesosID, frameworkID, executorID, containerID,
-		taskPath, file, defaultFormatter, opts...)
+		taskPath, file, formatter, opts...)
 	if err != nil {
-		ERROR(w, err.Error(), http.StatusInternalServerError)
-		logrus.Errorf("unable to initialize files API reader: %s", err)
+		logError(w, "unable to initialize files API reader: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if req.Header.Get("Accept") != "text/event-stream" {
+	if req.Header.Get("Accept") != eventStreamContentType {
 		for {
 			_, err := io.Copy(w, r)
 			switch err {
@@ -189,13 +190,13 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 			case reader.ErrNoData:
 				continue
 			default:
-				logrus.Errorf("unexpected error while reading the logs: %s", err)
+				logrus.Errorf("unexpected error while reading the logs: %s. Request: %s", err, req.RequestURI)
 				return
 			}
 		}
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Content-Type", eventStreamContentType)
 
 	// Set response headers.
 	w.Header().Set("Cache-Control", "no-cache")
@@ -204,7 +205,11 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Transfer-Encoding", "chunked")
 
 	w.Header().Set("X-Accel-Buffering", "no")
-	f := w.(http.Flusher)
+	f, ok := w.(http.Flusher)
+	if !ok {
+		logError(w, "unable to type assert ResponseWriter to Flusher", http.StatusInternalServerError)
+		return
+	}
 	notify := w.(http.CloseNotifier).CloseNotify()
 
 	f.Flush()
@@ -217,7 +222,10 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		case <-time.After(time.Microsecond * 100):
 			{
-				io.Copy(w, r)
+				_, err := io.Copy(w, r)
+				if err != nil && err != reader.ErrNoData {
+					logrus.Errorf("error while reading the files API reader: %s. Request: %s", err, req.RequestURI)
+				}
 				f.Flush()
 			}
 		}
@@ -253,7 +261,7 @@ func redirectURL(id *nodeutil.CanonicalTaskID, file, RawQuery string) (string, e
 func discover(w http.ResponseWriter, req *http.Request) {
 	nodeInfo, ok := middleware.FromContextNodeInfo(req.Context())
 	if !ok {
-		ERROR(w, "invalid context, unable to retrieve a nodeInfo object", http.StatusInternalServerError)
+		logError(w, "invalid context, unable to retrieve a nodeInfo object", http.StatusInternalServerError)
 		return
 	}
 
@@ -267,7 +275,7 @@ func discover(w http.ResponseWriter, req *http.Request) {
 
 	if taskID == "" {
 		logrus.Error("taskID is empty")
-		ERROR(w, "taskID is empty", http.StatusInternalServerError)
+		logError(w, "taskID is empty", http.StatusInternalServerError)
 		return
 	}
 
@@ -290,14 +298,14 @@ func discover(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		errMsg := fmt.Sprintf("unable to get canonical task ID: %s", err)
-		ERROR(w, errMsg, http.StatusInternalServerError)
+		logError(w, errMsg, http.StatusInternalServerError)
 		return
 	}
 
 	taskURL, err := redirectURL(canonicalTaskID, file, req.URL.RawQuery)
 	if err != nil {
 		errMsg := fmt.Sprintf("unable to build redirect URL: %s", err)
-		ERROR(w, errMsg, http.StatusInternalServerError)
+		logError(w, errMsg, http.StatusInternalServerError)
 		return
 	}
 
@@ -306,7 +314,7 @@ func discover(w http.ResponseWriter, req *http.Request) {
 
 func journalHandler(w http.ResponseWriter, r *http.Request) {
 	acceptHeader := r.Header.Get("Accept")
-	useSSE := acceptHeader == "text/event-stream"
+	useSSE := acceptHeader == eventStreamContentType
 
 	// for streaming endpoints and SSE logs format we include id: CursorID before each log entry.
 	entryFormatter := jr.NewEntryFormatter(acceptHeader, useSSE)
@@ -337,7 +345,7 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 		for _, filter := range filters {
 			filterArray := strings.Split(filter, ":")
 			if len(filterArray) != 2 {
-				ERROR(w, "incorrect filter parameter format, must be ?filer=key:value. Got "+filter, http.StatusBadRequest)
+				logError(w, "incorrect filter parameter format, must be ?filer=key:value. Got "+filter, http.StatusBadRequest)
 				return
 			}
 
@@ -373,7 +381,7 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 		if cursor != "" {
 			cursor, err = url.QueryUnescape(cursor)
 			if err != nil {
-				ERROR(w, "unable to un-escape cursor parameter: "+err.Error(), http.StatusBadRequest)
+				logError(w, "unable to un-escape cursor parameter: "+err.Error(), http.StatusBadRequest)
 				return
 			}
 		}
@@ -387,7 +395,7 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 	if limitStr := r.URL.Query().Get(limitParam); limitStr != "" {
 		limit, err := strconv.ParseUint(limitStr, 10, 64)
 		if err != nil {
-			ERROR(w, "unable to parse limit parameter: "+err.Error(), http.StatusBadRequest)
+			logError(w, "unable to parse limit parameter: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -398,7 +406,7 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 	if skipStr := r.URL.Query().Get(skipParam); skipStr != "" {
 		skip, err := strconv.Atoi(skipStr)
 		if err != nil {
-			ERROR(w, "unable to parse skip parameter: "+err.Error(), http.StatusBadRequest)
+			logError(w, "unable to parse skip parameter: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -413,7 +421,7 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 
 	j, err := jr.NewReader(entryFormatter, opts...)
 	if err != nil {
-		ERROR(w, "unable to open journald: "+err.Error(), http.StatusInternalServerError)
+		logError(w, "unable to open journald: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -427,12 +435,12 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 	if !useSSE {
 		b, err := io.Copy(w, j)
 		if err != nil {
-			ERROR(w, "unable to read the journal: "+err.Error(), http.StatusInternalServerError)
+			logError(w, "unable to read the journal: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		if b == 0 {
-			ERROR(w, "No match found", http.StatusNoContent)
+			logError(w, "No match found", http.StatusNoContent)
 		}
 		return
 	}
@@ -451,7 +459,10 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		case <-time.After(time.Second):
 			{
-				io.Copy(w, j)
+				_, err := io.Copy(w, j)
+				if err != nil {
+					logrus.Errorf("error while reading journald: %s. Request: %s", err, r.RequestURI)
+				}
 				f.Flush()
 			}
 		}

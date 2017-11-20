@@ -11,11 +11,11 @@ import (
 
 type key int
 
-var (
-	cfgKey        key
-	httpClientKey key = 1
-	nodeInfoKey   key = 2
-	tokenKey      key = 3
+const (
+	cfgKey key = key(iota)
+	httpClientKey
+	nodeInfoKey
+	tokenKey
 )
 
 // withKeyContext returns a context with an encapsulated object by a key.

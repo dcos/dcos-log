@@ -68,8 +68,8 @@ func GetAuthFromRequest(r *http.Request) (string, error) {
 	return "", ErrMissingToken
 }
 
-// AuthMiddleware is a middleware that validates a user has a valid JWT to access the given endpoint.
-func AuthMiddleware(next http.Handler, client *http.Client, nodeInfo nodeutil.NodeInfo, role string) http.Handler {
+// Auth is a middleware that validates a user has a valid JWT to access the given endpoint.
+func Auth(next http.Handler, client *http.Client, nodeInfo nodeutil.NodeInfo, role string) http.Handler {
 	if nodeInfo == nil {
 		panic("nodeInfo cannot be nil")
 	}

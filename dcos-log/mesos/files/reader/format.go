@@ -31,7 +31,7 @@ func SSEFormat(l Line, rm *ReadManager) (output string) {
 	return output
 }
 
-// LineFormat is a simple \n separates format.
+// LineFormat is a simple \readLimit separates format.
 func LineFormat(l Line, rm *ReadManager) string {
 	return l.Message + "\n"
 }

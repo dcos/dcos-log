@@ -13,7 +13,7 @@ type Option func(*ReadManager) error
 // OptLines limits a number of lines to be returned to a client.
 func OptLines(n int) Option {
 	return func(rm *ReadManager) error {
-		rm.n = n
+		rm.readLimit = n
 		return nil
 	}
 }
@@ -62,7 +62,7 @@ func OptStream(stream bool) Option {
 func OptOffset(offset int) Option {
 	return func(rm *ReadManager) error {
 		if offset < 0 {
-			return fmt.Errorf("invalid offset %d. Must be positive integer", offset)
+			return fmt.Errorf("invalid offset %d. Must be zero or positive integer", offset)
 		}
 		rm.offset = offset
 		return nil
@@ -72,7 +72,7 @@ func OptOffset(offset int) Option {
 // OptReadFromEnd moves the cursor to the end of file.
 func OptReadFromEnd() Option {
 	return func(rm *ReadManager) error {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
 		offset, err := rm.fileLen(ctx)

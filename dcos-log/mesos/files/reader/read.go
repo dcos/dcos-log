@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -19,14 +20,15 @@ const (
 	chunkSize = 1 << 16
 )
 
-var (
-	// ErrEmptyParam returned by NewLineReader if empty arguments passed.
-	ErrEmptyParam = errors.New("args cannot be empty")
+// ReadDirection specifies the direction files API will be read.
+type ReadDirection int
 
-	// ErrNoData is an error returned by Read(). It indicates that the buffer is empty
-	// and we need to request more data from mesos files API.
-	ErrNoData = errors.New("new data needed")
-)
+// BottomToTop reads files API from bottom to top.
+const BottomToTop ReadDirection = 0
+
+// ErrNoData is an error returned by Read(). It indicates that the buffer is empty
+// and we need to request more data from mesos files API.
+var ErrNoData = errors.New("new data needed")
 
 type response struct {
 	Data   string `json:"data"`
@@ -35,14 +37,14 @@ type response struct {
 
 type modifier func(s string) string
 
-func notEmpty(args []string) error {
+func notEmpty(args map[string]string) error {
 	if len(args) == 0 {
-		return ErrEmptyParam
+		return fmt.Errorf("parameters cannot be empty")
 	}
 
-	for _, arg := range args {
+	for name, arg := range args {
 		if arg == "" {
-			return ErrEmptyParam
+			return fmt.Errorf("parameter %s cannot be empty", name)
 		}
 	}
 
@@ -54,7 +56,8 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 	format Formatter, opts ...Option) (*ReadManager, error) {
 
 	// make sure the required parameters are set properly
-	if err := notEmpty([]string{agentID, frameworkID, executorID, containerID}); err != nil {
+	if err := notEmpty(map[string]string{"agentID": agentID, "frameworkID": frameworkID, "executorID": executorID,
+		"containerID": containerID}); err != nil {
 		return nil, err
 	}
 
@@ -101,6 +104,7 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 			length = rm.offset
 		}
 
+		// TODO: split this function into smaller ones to improve the readability.
 		for {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			lines, delta, err := rm.read(ctx, offset, length, reverse)
@@ -154,18 +158,7 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 	return rm, nil
 }
 
-// ReadDirection specifies the direction files API will be read.
-type ReadDirection int
-
-const (
-	// TopToBottom reads files API from top to bottom.
-	TopToBottom ReadDirection = iota
-
-	// BottomToTop reads files API from bottom to top.
-	BottomToTop
-)
-
-// ReadManager is a mesos files API reader. It reads builds the correct sandbox path to files
+// ReadManager is a mesos files API reader. It builds the correct sandbox path to files
 // and implements io.Reader.
 // http://mesos.apache.org/documentation/latest/endpoints/files/read/
 type ReadManager struct {
@@ -175,7 +168,7 @@ type ReadManager struct {
 	header       http.Header
 
 	readDirection ReadDirection
-	n             int
+	readLimit     int
 	skip          int
 	skipped       int
 	File          string
@@ -218,7 +211,7 @@ func (rm *ReadManager) do(req *http.Request) (*response, error) {
 
 func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	v := url.Values{}
-	v.Add("path", rm.sandboxPath+rm.File)
+	v.Add("path", filepath.Join(rm.sandboxPath, rm.File))
 	v.Add("offset", "-1")
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
@@ -240,7 +233,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 
 func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier modifier) ([]Line, int, error) {
 	v := url.Values{}
-	v.Add("path", rm.sandboxPath+rm.File)
+	v.Add("path", filepath.Join(rm.sandboxPath, rm.File))
 	v.Add("offset", strconv.Itoa(offset))
 	v.Add("length", strconv.Itoa(length))
 
@@ -272,7 +265,7 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier mo
 	}
 
 	linesWithOffset := make([]Line, len(lines))
-	// accumulates the position of the line + \n
+	// accumulates the position of the line + \readLimit
 	accumulator := 0
 	for i := 0; i < len(lines); i++ {
 		linesWithOffset[i] = Line{
@@ -286,8 +279,8 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier mo
 	return linesWithOffset, delta, nil
 }
 
-// Prepand the lines to a buffer.
-func (rm *ReadManager) Prepand(s Line) {
+// Prepend the lines to a buffer.
+func (rm *ReadManager) Prepend(s Line) {
 	if s.Message == "" {
 		return
 	}
@@ -311,7 +304,7 @@ func (rm *ReadManager) Pop() *Line {
 // Read implements io.Reader interface.
 func (rm *ReadManager) Read(b []byte) (int, error) {
 start:
-	if !rm.stream && rm.n > 0 && rm.readLines == rm.n {
+	if !rm.stream && rm.readLimit > 0 && rm.readLines == rm.readLimit {
 		return 0, io.EOF
 	}
 
@@ -327,7 +320,7 @@ start:
 		if len(lines) > 1 {
 			linesLen := 0
 			for _, line := range lines {
-				rm.Prepand(line)
+				rm.Prepend(line)
 				linesLen += len(line.Message) + 1
 			}
 
