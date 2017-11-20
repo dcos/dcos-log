@@ -71,11 +71,11 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 		sandboxPath:  sandboxPath,
 		formatFn:     format,
 
-		agentID: agentID,
+		agentID:     agentID,
 		frameworkID: frameworkID,
-		executorID: executorID,
+		executorID:  executorID,
 		containerID: containerID,
-		file: file,
+		file:        file,
 	}
 
 	for _, opt := range opts {
@@ -89,8 +89,8 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 	if rm.readDirection == BottomToTop && rm.skip != 0 {
 		var (
 			foundLines int
-			offset int
-			length int
+			offset     int
+			length     int
 		)
 
 		if rm.offset > chunkSize {
@@ -189,12 +189,12 @@ type ReadManager struct {
 
 	formatFn Formatter
 
-	agentID string
+	agentID     string
 	frameworkID string
-	executorID string
+	executorID  string
 	containerID string
-	taskPath string
-	file string
+	taskPath    string
+	file        string
 }
 
 func (rm *ReadManager) do(req *http.Request) (*response, error) {

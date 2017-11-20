@@ -1,8 +1,9 @@
 package reader
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
 )
 
@@ -39,7 +40,7 @@ func jsonifyLine(l Line, rm *ReadManager) (*Line, error) {
 	msg := l.Message
 	structMsg := struct {
 		Fields map[string]interface{} `json:"fields"`
-	} {
+	}{
 		Fields: map[string]interface{}{"MESSAGE": msg, "AGENT_ID": rm.agentID, "EXECUTOR_ID": rm.executorID,
 			"FRAMEWORK_ID": rm.frameworkID, "CONTAINER_ID": rm.containerID, "FILE": rm.file},
 	}

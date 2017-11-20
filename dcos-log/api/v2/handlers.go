@@ -8,16 +8,16 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"github.com/dcos/dcos-log/dcos-log/api/middleware"
+	jr "github.com/dcos/dcos-log/dcos-log/journal/reader"
 	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
 	"github.com/gorilla/mux"
-	jr "github.com/dcos/dcos-log/dcos-log/journal/reader"
-	"strings"
 )
 
 const (
@@ -25,9 +25,9 @@ const (
 )
 
 const (
-	skipParam = "skip"
+	skipParam   = "skip"
 	cursorParam = "cursor"
-	limitParam = "limit"
+	limitParam  = "limit"
 	filterParam = "filter"
 
 	cursorEndParam = "END"
@@ -312,8 +312,8 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 	entryFormatter := jr.NewEntryFormatter(acceptHeader, useSSE)
 	var (
 		cursor string
-		err error
-		opts []jr.Option
+		err    error
+		opts   []jr.Option
 	)
 
 	if componentName := mux.Vars(r)["name"]; componentName != "" {
@@ -373,7 +373,7 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 		if cursor != "" {
 			cursor, err = url.QueryUnescape(cursor)
 			if err != nil {
-				ERROR(w, "unable to un-escape cursor parameter: " + err.Error(), http.StatusBadRequest)
+				ERROR(w, "unable to un-escape cursor parameter: "+err.Error(), http.StatusBadRequest)
 				return
 			}
 		}
@@ -424,7 +424,7 @@ func journalHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Transfer-Encoding", "chunked")
 
-	if !useSSE{
+	if !useSSE {
 		b, err := io.Copy(w, j)
 		if err != nil {
 			ERROR(w, "unable to read the journal: "+err.Error(), http.StatusInternalServerError)
