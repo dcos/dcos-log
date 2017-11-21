@@ -40,7 +40,6 @@ func createHandler(data []byte, t *testing.T) http.HandlerFunc {
 			d = []byte{}
 		} else {
 			d = data[offset:]
-			//fmt.Printf("Data offset: %s", data[offset:])
 		}
 
 		resp := &response{
@@ -140,5 +139,30 @@ four
 	buf := doRead(t, data, OptSkip(2), OptLines(2))
 	if bytes.Compare(buf, expectedResponse) != 0 {
 		t.Fatalf("expect %s. Got %s", expectedResponse, buf)
+	}
+}
+
+func TestOneLine(t *testing.T) {
+	testData := []byte(`hello
+`)
+
+	buf := doRead(t, testData)
+	if bytes.Compare(buf, testData) != 0 {
+		t.Fatalf("expect %s. Got %s", testData, buf)
+	}
+}
+
+func TestEmptyData(t *testing.T) {
+	testData := []byte("")
+
+	buf := doRead(t, testData)
+	if len(buf) > 0 {
+		t.Fatalf("must be empty. Got %s", buf)
+	}
+
+	testData = []byte("\n")
+	buf = doRead(t, testData)
+	if len(buf) > 0 {
+		t.Fatalf("must be empty. Got %s", buf)
 	}
 }
