@@ -288,6 +288,17 @@ func discover(w http.ResponseWriter, req *http.Request) {
 		err             error
 	)
 
+	// add headers to context
+	token, ok := middleware.FromContextToken(req.Context())
+	if !ok {
+		logError(w, "unable to get authorization header from a request", http.StatusUnauthorized)
+		return
+	}
+
+	header := http.Header{}
+	header.Set("Authorization", token)
+	ctx = nodeutil.NewContextWithHeaders(ctx, header)
+
 	// TODO: expose this option to a user.
 	for _, completed := range []bool{false, true} {
 		canonicalTaskID, err = nodeInfo.TaskCanonicalID(ctx, taskID, completed)
