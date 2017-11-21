@@ -24,7 +24,7 @@ const (
 type ReadDirection int
 
 // BottomToTop reads files API from bottom to top.
-const BottomToTop ReadDirection = 0
+const BottomToTop ReadDirection = 1
 
 // ErrNoData is an error returned by Read(). It indicates that the buffer is empty
 // and we need to request more data from mesos files API.
