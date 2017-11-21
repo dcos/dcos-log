@@ -256,6 +256,11 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier mo
 	if err != nil {
 		return nil, 0, err
 	}
+
+	if resp.Data == "" || resp.Data == "\n" {
+		return nil, 0, io.EOF
+	}
+
 	lines := strings.Split(modifier(resp.Data), "\n")
 
 	delta := 0
@@ -317,7 +322,7 @@ start:
 			return 0, err
 		}
 
-		if len(lines) > 1 {
+		if len(lines) > 0 {
 			linesLen := 0
 			for _, line := range lines {
 				rm.Prepend(line)
@@ -329,8 +334,6 @@ start:
 			} else {
 				rm.offset = (rm.offset + chunkSize) - delta - 1
 			}
-		} else {
-			return 0, io.EOF
 		}
 	}
 
