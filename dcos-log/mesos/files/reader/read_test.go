@@ -143,11 +143,26 @@ four
 }
 
 func TestOneLine(t *testing.T) {
-	testData:= []byte(`hello
+	testData := []byte(`hello
 `)
 
 	buf := doRead(t, testData)
 	if bytes.Compare(buf, testData) != 0 {
 		t.Fatalf("expect %s. Got %s", testData, buf)
+	}
+}
+
+func TestEmptyData(t *testing.T) {
+	testData := []byte("")
+
+	buf := doRead(t, testData)
+	if len(buf) > 0 {
+		t.Fatalf("must be empty. Got %s", buf)
+	}
+
+	testData = []byte("\n")
+	buf = doRead(t, testData)
+	if len(buf) > 0 {
+		t.Fatalf("must be empty. Got %s", buf)
 	}
 }
