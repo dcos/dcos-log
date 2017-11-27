@@ -349,6 +349,11 @@ start:
 	return strings.NewReader(rm.formatFn(*line, rm)).Read(b)
 }
 
+// Sandbox returns a path to mesos sandbox.
+func (rm ReadManager) Sandbox() string {
+	return rm.sandboxPath
+}
+
 func reverse(s string) string {
 	runes := []rune(s)
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
