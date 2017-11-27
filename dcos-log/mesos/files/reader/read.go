@@ -216,7 +216,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
-	logrus.Info(newURL.String())
+	logrus.Debugf("fileLen %s", newURL)
 	req, err := http.NewRequest("GET", newURL.String(), nil)
 	if err != nil {
 		return 0, err
@@ -244,7 +244,7 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier mo
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
-	logrus.Info(newURL.String())
+	logrus.Debugf("read %s", newURL)
 
 	req, err := http.NewRequest("GET", newURL.String(), nil)
 	if err != nil {
