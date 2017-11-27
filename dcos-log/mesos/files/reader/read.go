@@ -69,7 +69,7 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 	rm := &ReadManager{
 		client: client,
 
-		File:         file,
+		file:         file,
 		readEndpoint: masterURL,
 		sandboxPath:  sandboxPath,
 		formatFn:     format,
@@ -78,7 +78,6 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 		frameworkID: frameworkID,
 		executorID:  executorID,
 		containerID: containerID,
-		file:        file,
 	}
 
 	for _, opt := range opts {
@@ -171,7 +170,7 @@ type ReadManager struct {
 	readLimit     int
 	skip          int
 	skipped       int
-	File          string
+	file          string
 
 	size   int
 	offset int
@@ -187,7 +186,6 @@ type ReadManager struct {
 	executorID  string
 	containerID string
 	taskPath    string
-	file        string
 }
 
 func (rm *ReadManager) do(req *http.Request) (*response, error) {
@@ -211,7 +209,7 @@ func (rm *ReadManager) do(req *http.Request) (*response, error) {
 
 func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	v := url.Values{}
-	v.Add("path", filepath.Join(rm.sandboxPath, rm.File))
+	v.Add("path", filepath.Join(rm.sandboxPath, rm.file))
 	v.Add("offset", "-1")
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
@@ -233,7 +231,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 
 func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier modifier) ([]Line, int, error) {
 	v := url.Values{}
-	v.Add("path", filepath.Join(rm.sandboxPath, rm.File))
+	v.Add("path", filepath.Join(rm.sandboxPath, rm.file))
 	v.Add("offset", strconv.Itoa(offset))
 	v.Add("length", strconv.Itoa(length))
 
