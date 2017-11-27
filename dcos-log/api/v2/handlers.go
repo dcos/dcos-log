@@ -38,6 +38,16 @@ const (
 	eventStreamContentType = "text/event-stream"
 )
 
+type errSetupFilesAPIReader struct {
+	msg  string
+	code int
+}
+
+// Error implements errors interface.
+func (e errSetupFilesAPIReader) Error() string {
+	return e.msg
+}
+
 // TODO: pass a request to logError to enhance logging. (url, query parameters, any relevant headers, and so on)
 // logError is a http.Error wrapper, that also emits an error to a console
 func logError(w http.ResponseWriter, msg string, code int) {
@@ -45,28 +55,43 @@ func logError(w http.ResponseWriter, msg string, code int) {
 	logrus.Errorf("%s; http code: %d", msg, code)
 }
 
-func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
+func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Option) (r *reader.ReadManager, err error) {
+
 	cfg, ok := middleware.FromContextConfig(req.Context())
 	if !ok {
-		logError(w, "invalid context, unable to retrieve a config object", http.StatusInternalServerError)
-		return
+		return nil, errSetupFilesAPIReader{
+			msg:  "invalid context, unable to retrieve a config object",
+			code: http.StatusInternalServerError,
+		}
 	}
 
 	client, ok := middleware.FromContextHTTPClient(req.Context())
 	if !ok {
-		logError(w, "invalid context, unable to retrieve an *http.Client object", http.StatusInternalServerError)
-		return
+		return nil, errSetupFilesAPIReader{
+			msg:  "invalid context, unable to retrieve an *http.Client object",
+			code: http.StatusInternalServerError,
+		}
 	}
 
 	nodeInfo, ok := middleware.FromContextNodeInfo(req.Context())
 	if !ok {
-		logError(w, "invalid context, unable to retrieve a nodeInfo object", http.StatusInternalServerError)
-		return
+		return nil, errSetupFilesAPIReader{
+			msg:  "invalid context, unable to retrieve a nodeInfo object",
+			code: http.StatusInternalServerError,
+		}
 	}
 
 	scheme := "http"
 	if cfg.FlagAuth {
 		scheme = "https"
+	}
+
+	token, ok := middleware.FromContextToken(req.Context())
+	if !ok {
+		return nil, errSetupFilesAPIReader{
+			msg:  "unable to get authorization header from a request",
+			code: http.StatusUnauthorized,
+		}
 	}
 
 	vars := mux.Vars(req)
@@ -76,37 +101,47 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 	taskPath := vars["taskPath"]
 	file := vars["file"]
 
-	token, ok := middleware.FromContextToken(req.Context())
-	if !ok {
-		logError(w, "unable to get authorization header from a request", http.StatusUnauthorized)
-		return
-	}
-
 	header := http.Header{}
 	header.Set("Authorization", token)
+
+	opts = []reader.Option{reader.OptHeaders(header)}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	mesosID, err := nodeInfo.MesosID(nodeutil.NewContextWithHeaders(ctx, header))
 	if err != nil {
-		logError(w, "unable to get mesosID: "+err.Error(), http.StatusInternalServerError)
-		return
+		return nil, errSetupFilesAPIReader{
+			msg:  "unable to get mesosID: " + err.Error(),
+			code: http.StatusInternalServerError,
+		}
 	}
 
 	ip, err := nodeInfo.DetectIP()
 	if err != nil {
-		logError(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, errSetupFilesAPIReader{
+			msg:  "unable to run detect_ip: " + err.Error(),
+			code: http.StatusInternalServerError,
+		}
 	}
 
-	masterURL := url.URL{
-		Scheme: scheme,
+	masterURL := &url.URL{
 		Host:   net.JoinHostPort(ip.String(), strconv.Itoa(dcos.PortMesosAgent)),
-		Path:   "/files/read",
+		Scheme: scheme,
+		Path:   urlPath,
 	}
 
-	opts := []reader.Option{reader.OptHeaders(header)}
+	formatter := reader.LineFormat
+	if req.Header.Get("Accept") == eventStreamContentType {
+		formatter = reader.SSEFormat
+	}
+
+	return reader.NewLineReader(client, *masterURL, mesosID, frameworkID, executorID, containerID, taskPath, file, formatter, opts...)
+}
+
+func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
+	opts := []reader.Option{}
+	var err error
 
 	var limit int
 	if limitStr := req.URL.Query().Get(limitParam); limitStr != "" {
@@ -121,7 +156,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 		opts = append(opts, reader.OptLines(limit))
 	}
 
-	cursor := -1
+	var cursor = -1
 	if cursorStr := req.URL.Query().Get(cursorParam); cursorStr != "" {
 		if cursorStr == cursorBegParam {
 			cursor = 0
@@ -168,16 +203,19 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 		opts = append(opts, reader.OptOffset(offset))
 	}
 
-	formatter := reader.LineFormat
 	if req.Header.Get("Accept") == eventStreamContentType {
-		formatter = reader.SSEFormat
 		opts = append(opts, reader.OptStream(true))
 	}
 
-	r, err := reader.NewLineReader(client, masterURL, mesosID, frameworkID, executorID, containerID,
-		taskPath, file, formatter, opts...)
+	r, err := setupFilesAPIReader(req, "/files/read", opts...)
 	if err != nil {
-		logError(w, "unable to initialize files API reader: "+err.Error(), http.StatusInternalServerError)
+		e, ok := err.(errSetupFilesAPIReader)
+		if !ok {
+			logError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		logError(w, e.msg, e.code)
 		return
 	}
 
