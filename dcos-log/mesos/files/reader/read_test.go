@@ -21,8 +21,13 @@ five
 `)
 )
 
-func createHandler(data []byte, t *testing.T) http.HandlerFunc {
+func createHandler(data []byte, useResponse bool, t *testing.T) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		if !useResponse {
+			io.Copy(w, bytes.NewReader(data))
+			return
+		}
 
 		d := data
 		// check the correct offset
@@ -53,11 +58,12 @@ func createHandler(data []byte, t *testing.T) http.HandlerFunc {
 		}
 
 		io.Copy(w, bytes.NewReader(marshaledResp))
+
 	}
 }
 
 func doRead(t *testing.T, data []byte, opts ...Option) []byte {
-	ts := httptest.NewServer(createHandler(data, t))
+	ts := httptest.NewServer(createHandler(data, true, t))
 	defer ts.Close()
 
 	client := &http.Client{}
@@ -164,5 +170,98 @@ func TestEmptyData(t *testing.T) {
 	buf = doRead(t, testData)
 	if len(buf) > 0 {
 		t.Fatalf("must be empty. Got %s", buf)
+	}
+}
+
+func TestBrowseSandbox(t *testing.T) {
+	sandboxResponse := []byte(`[{
+"gid":"root",
+"mode":"-rw-r--r--",
+"mtime":1513020278.0,
+"nlink":1,
+"path":"\/var\/lib\/mesos\/slave\/slaves\/f7df47cd-c82b-470d-b84b-4fc8611a3976-S1\/frameworks\/f7df47cd-c82b-470d-b84b-4fc8611a3976-0001\/executors\/instance-parent-pod.ed021ce3-dea8-11e7-9679-bef2db080897\/runs\/34ddc098-3310-4a9b-9f07-3d42e4c334bc\/tasks\/parent-pod.instance-ed021ce3-dea8-11e7-9679-bef2db080897.container-1\/one",
+"size":10,
+"uid":"root"
+}]`)
+
+	ts := httptest.NewServer(createHandler(sandboxResponse, false, t))
+	defer ts.Close()
+
+	client := &http.Client{}
+
+	masterURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := NewLineReader(client, *masterURL, "1", "2", "3", "4", "",
+		"stdout", LineFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := r.BrowseSandbox()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(files) != 1 {
+		t.Fatalf("expecting one item. Got %d", len(files))
+	}
+
+	item := files[0]
+	if item.MTime != 1513020278 {
+		t.Fatalf("expect mtime 1513020278. Got %d", item.MTime)
+	}
+
+	expectedPath := "/var/lib/mesos/slave/slaves/f7df47cd-c82b-470d-b84b-4fc8611a3976-S1/frameworks/f7df47cd-c82b-470d-b84b-4fc8611a3976-0001/executors/instance-parent-pod.ed021ce3-dea8-11e7-9679-bef2db080897/runs/34ddc098-3310-4a9b-9f07-3d42e4c334bc/tasks/parent-pod.instance-ed021ce3-dea8-11e7-9679-bef2db080897.container-1/one"
+	if item.Path != expectedPath {
+		t.Fatalf("expect path %s. Got %s", expectedPath, item.Path)
+	}
+
+	if item.GID != "root" {
+		t.Fatalf("expect gid root. Got %s", item.GID)
+	}
+
+	if item.Mode != "-rw-r--r--" {
+		t.Fatalf("invalid mode %s", item.Mode)
+	}
+
+	if item.Size != 10 {
+		t.Fatalf("invalid size %d", item.Size)
+	}
+}
+
+func TestDownload(t *testing.T) {
+	body := []byte("one two three")
+	ts := httptest.NewServer(createHandler(body, false, t))
+	defer ts.Close()
+
+	client := &http.Client{}
+
+	masterURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := NewLineReader(client, *masterURL, "1", "2", "3", "4", "",
+		"stdout", LineFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dl, err := r.Download()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dl.Body.Close()
+
+	buf, err := ioutil.ReadAll(dl.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(body, buf) != 0 {
+		t.Fatalf("expect %s. Got %s", body, buf)
 	}
 }
