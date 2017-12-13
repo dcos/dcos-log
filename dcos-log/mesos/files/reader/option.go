@@ -29,7 +29,7 @@ func OptSkip(n int) Option {
 // OptFile sets the filename to read.
 func OptFile(f string) Option {
 	return func(rm *ReadManager) error {
-		rm.File = f
+		rm.file = f
 		return nil
 	}
 }
