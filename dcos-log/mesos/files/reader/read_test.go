@@ -21,10 +21,10 @@ five
 `)
 )
 
-func createHandler(data []byte, useResponse bool, t *testing.T) http.HandlerFunc {
+func createHandler(data []byte, forceSendResponse bool, t *testing.T) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		if !useResponse {
+		if !forceSendResponse {
 			io.Copy(w, bytes.NewReader(data))
 			return
 		}
@@ -187,7 +187,7 @@ func TestBrowseSandbox(t *testing.T) {
 	ts := httptest.NewServer(createHandler(sandboxResponse, false, t))
 	defer ts.Close()
 
-	client := &http.Client{}
+	client := http.DefaultClient
 
 	masterURL, err := url.Parse(ts.URL)
 	if err != nil {

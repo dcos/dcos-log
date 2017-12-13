@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -45,13 +46,10 @@ type errSetupFilesAPIReader struct {
 	code int
 }
 
-// Error implements errors interface.
 func (e errSetupFilesAPIReader) Error() string {
 	return e.msg
 }
 
-// TODO: pass a request to logError to enhance logging. (url, query parameters, any relevant headers, and so on)
-// logError is a http.Error wrapper, that also emits an error to a console
 func logError(w http.ResponseWriter, req *http.Request, msg string, code int) {
 	http.Error(w, msg, code)
 	logrus.Errorf("%s; http code: %d, request %s", msg, code, req.URL)
@@ -62,7 +60,7 @@ func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Optio
 	cfg, ok := middleware.FromContextConfig(req.Context())
 	if !ok {
 		return nil, errSetupFilesAPIReader{
-			msg:  "invalid context, unable to retrieve a config object",
+			msg:  fmt.Sprintf("invalid context, unable to retrieve %T object", cfg),
 			code: http.StatusInternalServerError,
 		}
 	}
@@ -70,7 +68,7 @@ func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Optio
 	client, ok := middleware.FromContextHTTPClient(req.Context())
 	if !ok {
 		return nil, errSetupFilesAPIReader{
-			msg:  "invalid context, unable to retrieve an *http.Client object",
+			msg:  fmt.Sprintf("invalid context, unable to retrieve %T object", client),
 			code: http.StatusInternalServerError,
 		}
 	}
@@ -78,7 +76,7 @@ func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Optio
 	nodeInfo, ok := middleware.FromContextNodeInfo(req.Context())
 	if !ok {
 		return nil, errSetupFilesAPIReader{
-			msg:  "invalid context, unable to retrieve a nodeInfo object",
+			msg:  fmt.Sprintf("invalid context, unable to retrieve a %T object", nodeInfo),
 			code: http.StatusInternalServerError,
 		}
 	}
@@ -106,7 +104,7 @@ func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Optio
 	header := http.Header{}
 	header.Set("Authorization", token)
 
-	opts = []reader.Option{reader.OptHeaders(header)}
+	opts = append(opts, reader.OptHeaders(header))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -142,7 +140,7 @@ func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Optio
 }
 
 func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
-	opts := []reader.Option{}
+	var opts []reader.Option
 	var err error
 
 	var limit int
@@ -158,7 +156,7 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 		opts = append(opts, reader.OptLines(limit))
 	}
 
-	var cursor = -1
+	cursor := -1
 	if cursorStr := req.URL.Query().Get(cursorParam); cursorStr != "" {
 		if cursorStr == cursorBegParam {
 			cursor = 0
@@ -299,16 +297,16 @@ func redirectURL(id *nodeutil.CanonicalTaskID, file, RawQuery string, browse, do
 		id.FrameworkID, executorID, taskID)
 
 	if isPod {
-		taskLogURL += fmt.Sprintf("/tasks/%s", id.ID)
+		taskLogURL += path.Join("/tasks/", id.ID)
 	}
 
 	if browse {
-		taskLogURL += "/files/browse"
+		taskLogURL = path.Join(taskLogURL, "/files/browse")
 	} else {
-		taskLogURL += "/" + file
+		taskLogURL = path.Join(taskLogURL, file)
 
 		if download {
-			taskLogURL += "/download"
+			taskLogURL = path.Join(taskLogURL, "/download")
 		}
 	}
 
@@ -347,7 +345,6 @@ func discover(w http.ResponseWriter, req *http.Request, browse, download bool) {
 	}
 
 	if taskID == "" {
-		logrus.Error("taskID is empty")
 		logError(w, req, "taskID is empty", http.StatusInternalServerError)
 		return
 	}
@@ -605,5 +602,8 @@ func downloadFile(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	io.Copy(w, downloadResp.Body)
+	_, err = io.Copy(w, downloadResp.Body)
+	if err != nil {
+		logError(w, req, err.Error(), http.StatusInternalServerError)
+	}
 }

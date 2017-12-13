@@ -1,6 +1,7 @@
 package reader
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,17 +9,23 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"bytes"
 	"github.com/Sirupsen/logrus"
 )
 
 const (
 	chunkSize = 1 << 16
+)
+
+const (
+	pathParam   = "path"
+	offsetParam = "offset"
+	lengthParam = "length"
 )
 
 // ReadDirection specifies the direction files API will be read.
@@ -67,9 +74,9 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 		return nil, err
 	}
 
-	sandboxPath := fmt.Sprintf("/var/lib/mesos/slave/slaves/%s/frameworks/%s/executors/%s/runs/%s/", agentID, frameworkID, executorID, containerID)
+	sandboxPath := path.Join("/var/lib/mesos/slave/slaves/", agentID, "/frameworks/", frameworkID, "/executors/", executorID, "/runs/", containerID)
 	if taskPath != "" {
-		sandboxPath += fmt.Sprintf("tasks/%s/", taskPath)
+		sandboxPath = path.Join(sandboxPath, "tasks/"+taskPath+"/")
 	}
 
 	rm := &ReadManager{
@@ -150,12 +157,12 @@ func calcOffset(offset, length int, rm *ReadManager) error {
 				}
 				rm.offset -= len(lines[i].Message) + 1
 			}
-			break
-		} else {
-			// if the current chunk contains less then requested lines, then add to a counter
-			// and continue search.
-			foundLines += len(lines)
+			return nil
 		}
+
+		// if the current chunk contains less then requested lines, then add to a counter
+		// and continue search.
+		foundLines += len(lines)
 
 		length = chunkSize
 		offset -= chunkSize - delta
@@ -165,11 +172,9 @@ func calcOffset(offset, length int, rm *ReadManager) error {
 		// we can just set the offset to 0 and read the entire file
 		if offset < 0 {
 			rm.offset = 0
-			break
+			return nil
 		}
 	}
-
-	return nil
 }
 
 // ReadManager is a mesos files API reader. It builds the correct sandbox path to files
@@ -229,8 +234,8 @@ func (rm *ReadManager) do(req *http.Request) (*response, error) {
 
 func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	v := url.Values{}
-	v.Add("path", filepath.Join(rm.sandboxPath, rm.file))
-	v.Add("offset", "-1")
+	v.Add(pathParam, filepath.Join(rm.sandboxPath, rm.file))
+	v.Add(offsetParam, "-1")
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
@@ -251,9 +256,9 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 
 func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier modifier) ([]Line, int, error) {
 	v := url.Values{}
-	v.Add("path", filepath.Join(rm.sandboxPath, rm.file))
-	v.Add("offset", strconv.Itoa(offset))
-	v.Add("length", strconv.Itoa(length))
+	v.Add(pathParam, filepath.Join(rm.sandboxPath, rm.file))
+	v.Add(offsetParam, strconv.Itoa(offset))
+	v.Add(lengthParam, strconv.Itoa(length))
 
 	if modifier == nil {
 		modifier = func(s string) string { return s }
@@ -397,7 +402,7 @@ func (mt *mTime) UnmarshalJSON(data []byte) error {
 // BrowseSandbox returns a url to browse files in the sandbox.
 func (rm ReadManager) BrowseSandbox() ([]SandboxFile, error) {
 	v := url.Values{}
-	v.Add("path", rm.sandboxPath)
+	v.Add(pathParam, rm.sandboxPath)
 
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
@@ -420,14 +425,14 @@ func (rm ReadManager) BrowseSandbox() ([]SandboxFile, error) {
 // Download makes a request to download endpoint and returns a raw http.Response for client to read and close.
 func (rm ReadManager) Download() (*http.Response, error) {
 	v := url.Values{}
-	v.Add("path", filepath.Join(rm.sandboxPath, rm.file))
+	v.Add(pathParam, filepath.Join(rm.sandboxPath, rm.file))
 
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
 	req, err := http.NewRequest("GET", newURL.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to create a new request to %s: %s", newURL.String(), err)
 	}
 
 	return rm.client.Do(req)
