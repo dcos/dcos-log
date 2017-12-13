@@ -2,6 +2,7 @@ package v2
 
 import (
 	"net/http"
+	"path"
 
 	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"github.com/dcos/dcos-log/dcos-log/api/middleware"
@@ -27,7 +28,7 @@ func InitRoutes(v2 *mux.Router, cfg *config.Config, client *http.Client, nodeInf
 
 	// task logs
 	wrappedTaskLogHandler := middleware.Wrapped(http.HandlerFunc(filesAPIHandler), cfg, client, nodeInfo)
-	v2.Path(taskPath + "/{file}").Handler(wrappedTaskLogHandler).Methods("GET")
+	v2.Path(path.Join(taskPath, "/{file}")).Handler(wrappedTaskLogHandler).Methods("GET")
 	v2.Path(podPath + "/{file}").Handler(wrappedTaskLogHandler).Methods("GET")
 
 	// discover endpoints
@@ -36,22 +37,22 @@ func InitRoutes(v2 *mux.Router, cfg *config.Config, client *http.Client, nodeInf
 	wrappedDiscoverDownloadHandler := middleware.Wrapped(http.HandlerFunc(downloadHandler), cfg, client, nodeInfo)
 
 	v2.Path(discoverPath).Handler(wrappedDiscoverHandler).Methods("GET")
-	v2.Path(discoverPath + "/file/{file}").Handler(wrappedDiscoverHandler).Methods("GET")
+	v2.Path(path.Join(discoverPath, "/file/{file}")).Handler(wrappedDiscoverHandler).Methods("GET")
 
 	// browse files
-	v2.Path(discoverPath + "/browse").Handler(wrappedDiscoverBrowseHandler).Methods("GET")
+	v2.Path(path.Join(discoverPath, "/browse")).Handler(wrappedDiscoverBrowseHandler).Methods("GET")
 
 	// download a file, default to stdout
-	v2.Path(discoverPath + "/download").Handler(wrappedDiscoverDownloadHandler).Methods("GET")
-	v2.Path(discoverPath + "/file/{file}/download").Handler(wrappedDiscoverDownloadHandler).Methods("GET")
+	v2.Path(path.Join(discoverPath, "/download")).Handler(wrappedDiscoverDownloadHandler).Methods("GET")
+	v2.Path(path.Join(discoverPath, "/file/{file}/download")).Handler(wrappedDiscoverDownloadHandler).Methods("GET")
 
 	// component logs
 	wrappedComponentHandler := middleware.Wrapped(http.HandlerFunc(journalHandler), cfg, client, nodeInfo)
 	v2.Path(componentPath).Handler(wrappedComponentHandler).Methods("GET")
-	v2.Path(componentPath + "/{name}").Handler(wrappedComponentHandler).Methods("GET")
+	v2.Path(path.Join(componentPath, "/{name}")).Handler(wrappedComponentHandler).Methods("GET")
 
 	// download path
 	wrappedDownloadHandler := middleware.Wrapped(http.HandlerFunc(downloadFile), cfg, client, nodeInfo)
-	v2.Path(taskPath + "/{file}/download").Handler(wrappedDownloadHandler).Methods("GET")
-	v2.Path(podPath + "/{file}/download").Handler(wrappedDownloadHandler).Methods("GET")
+	v2.Path(path.Join(taskPath, "/{file}/download")).Handler(wrappedDownloadHandler).Methods("GET")
+	v2.Path(path.Join(podPath, "/{file}/download")).Handler(wrappedDownloadHandler).Methods("GET")
 }

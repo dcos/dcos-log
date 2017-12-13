@@ -74,9 +74,9 @@ func NewLineReader(client *http.Client, masterURL url.URL, agentID, frameworkID,
 		return nil, err
 	}
 
-	sandboxPath := path.Join("/var/lib/mesos/slave/slaves/", agentID, "/frameworks/", frameworkID, "/executors/", executorID, "/runs/", containerID)
+	sandboxPath := path.Join("/var/lib/mesos/slave/slaves", agentID, "/frameworks", frameworkID, "/executors", executorID, "/runs", containerID)
 	if taskPath != "" {
-		sandboxPath = path.Join(sandboxPath, "tasks/"+taskPath+"/")
+		sandboxPath = path.Join(sandboxPath, path.Join("tasks", taskPath))
 	}
 
 	rm := &ReadManager{

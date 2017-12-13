@@ -297,7 +297,7 @@ func redirectURL(id *nodeutil.CanonicalTaskID, file, RawQuery string, browse, do
 		id.FrameworkID, executorID, taskID)
 
 	if isPod {
-		taskLogURL += path.Join("/tasks/", id.ID)
+		taskLogURL += path.Join("/tasks", id.ID)
 	}
 
 	if browse {
@@ -604,6 +604,6 @@ func downloadFile(w http.ResponseWriter, req *http.Request) {
 
 	_, err = io.Copy(w, downloadResp.Body)
 	if err != nil {
-		logError(w, req, err.Error(), http.StatusInternalServerError)
+		logrus.Errorf("error raised while reading the download endpoint: %s", err)
 	}
 }
