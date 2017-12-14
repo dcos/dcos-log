@@ -239,7 +239,7 @@ func (rm *ReadManager) fileLen(ctx context.Context) (int, error) {
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
-	logrus.Debugf("fileLen %s", newURL)
+	logrus.Debugf("fileLen %s", newURL.String())
 	req, err := http.NewRequest("GET", newURL.String(), nil)
 	if err != nil {
 		return 0, err
@@ -267,7 +267,7 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier mo
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
-	logrus.Debugf("read %s", newURL)
+	logrus.Debugf("read %s", newURL.String())
 
 	req, err := http.NewRequest("GET", newURL.String(), nil)
 	if err != nil {
@@ -418,6 +418,9 @@ func (rm ReadManager) BrowseSandbox() ([]SandboxFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to make a GET request: %s. URL %s", err, newURL.String())
 	}
+
+	logrus.Debugf("sandbox browse %s", newURL.String())
+
 	defer resp.Body.Close()
 
 	var files []SandboxFile
@@ -441,6 +444,8 @@ func (rm ReadManager) Download() (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create a new request to %s: %s", newURL.String(), err)
 	}
+
+	logrus.Debugf("download %s", newURL.String())
 
 	req.Header = rm.header
 
