@@ -552,7 +552,18 @@ func journalHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func browseFiles(w http.ResponseWriter, req *http.Request) {
-	r, err := setupFilesAPIReader(req, "/files/browse")
+	token, ok := middleware.FromContextToken(req.Context())
+	if !ok {
+		logError(w, req, "unable to get authorization header from a request", http.StatusUnauthorized)
+		return
+	}
+
+	header := http.Header{}
+	header.Set("Authorization", token)
+
+	opts := []reader.Option{reader.OptHeaders(header)}
+
+	r, err := setupFilesAPIReader(req, "/files/browse", opts...)
 	if err != nil {
 		e, ok := err.(errSetupFilesAPIReader)
 		if !ok {
@@ -577,7 +588,18 @@ func browseFiles(w http.ResponseWriter, req *http.Request) {
 }
 
 func downloadFile(w http.ResponseWriter, req *http.Request) {
-	r, err := setupFilesAPIReader(req, "/files/download")
+	token, ok := middleware.FromContextToken(req.Context())
+	if !ok {
+		logError(w, req, "unable to get authorization header from a request", http.StatusUnauthorized)
+		return
+	}
+
+	header := http.Header{}
+	header.Set("Authorization", token)
+
+	opts := []reader.Option{reader.OptHeaders(header)}
+
+	r, err := setupFilesAPIReader(req, "/files/download", opts...)
 	if err != nil {
 		e, ok := err.(errSetupFilesAPIReader)
 		if !ok {

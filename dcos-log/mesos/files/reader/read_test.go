@@ -265,3 +265,20 @@ func TestDownload(t *testing.T) {
 		t.Fatalf("expect %s. Got %s", body, buf)
 	}
 }
+
+func TestHeaderSet(t *testing.T) {
+	h := http.Header{}
+	h.Add("foo", "bar")
+
+	opts := []Option{OptHeaders(h)}
+
+	r, err := NewLineReader(http.DefaultClient, url.URL{}, "1", "2", "3", "4",
+		"", "stdout", LineFormat, opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.header.Get("foo") != "bar" {
+		t.Fatalf("expected header foo with value bar. Got %+v", r.header)
+	}
+}

@@ -407,7 +407,14 @@ func (rm ReadManager) BrowseSandbox() ([]SandboxFile, error) {
 	newURL := rm.readEndpoint
 	newURL.RawQuery = v.Encode()
 
-	resp, err := rm.client.Get(newURL.String())
+	req, err := http.NewRequest("GET", newURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header = rm.header
+
+	resp, err := rm.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unable to make a GET request: %s. URL %s", err, newURL.String())
 	}
@@ -434,6 +441,8 @@ func (rm ReadManager) Download() (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create a new request to %s: %s", newURL.String(), err)
 	}
+
+	req.Header = rm.header
 
 	return rm.client.Do(req)
 }
