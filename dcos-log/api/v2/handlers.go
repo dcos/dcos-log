@@ -104,7 +104,8 @@ func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Optio
 	header := http.Header{}
 	header.Set("Authorization", token)
 
-	opts = append(opts, reader.OptHeaders(header))
+	newOpts := []reader.Option{reader.OptHeaders(header)}
+	newOpts = append(newOpts, opts...)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -136,7 +137,8 @@ func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Optio
 		formatter = reader.SSEFormat
 	}
 
-	return reader.NewLineReader(client, *masterURL, mesosID, frameworkID, executorID, containerID, taskPath, file, formatter, opts...)
+	return reader.NewLineReader(client, *masterURL, mesosID, frameworkID, executorID, containerID, taskPath, file, formatter,
+		newOpts...)
 }
 
 func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
