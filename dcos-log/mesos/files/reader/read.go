@@ -150,8 +150,8 @@ func calcOffset(offset, length int, rm *ReadManager) error {
 		}
 
 		// if the required number of lines found, we need to calculate an offset
-		if foundLines+len(lines) >= skip {
-			for i, skipped := 0, 0; skipped < skip; i++ {
+		if foundLines+len(lines) > skip {
+			for i, skipped := 0, 0; skipped < skip && i < len(lines); i++ {
 				if lines[i].Message != "" {
 					skipped++
 				}
