@@ -282,3 +282,10 @@ func TestHeaderSet(t *testing.T) {
 		t.Fatalf("expected header foo with value bar. Got %+v", r.header)
 	}
 }
+
+func TestSkipBoundary(t *testing.T) {
+	// Test the values from -100 to 100 are acceptable and not causing panic
+	for i := -100; i < 100; i++ {
+		doRead(t, data, OptReadDirection(BottomToTop), OptSkip(i))
+	}
+}
