@@ -150,7 +150,7 @@ func calcOffset(offset, length int, rm *ReadManager) error {
 		}
 
 		// if the required number of lines found, we need to calculate an offset
-		if foundLines+len(lines) > skip {
+		if foundLines+len(lines) >= skip {
 			for i, skipped := 0, 0; skipped < skip && i < len(lines); i++ {
 				if lines[i].Message != "" {
 					skipped++
@@ -287,7 +287,9 @@ func (rm *ReadManager) read(ctx context.Context, offset, length int, modifier mo
 	lines := strings.Split(modifier(resp.Data), "\n")
 
 	delta := 0
-	if len(lines) > 1 {
+	// calculate delta only for chunks with offset > 0
+	// this is required to distinguish the chunk that start from the beginning, because it's does not have delta.
+	if offset > 0 && len(lines) > 1 {
 		delta = len(lines[len(lines)-1])
 		lines = lines[:len(lines)-1]
 	}
