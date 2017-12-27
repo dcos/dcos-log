@@ -31,28 +31,28 @@
 			"revisionTime": "2016-07-27T23:37:14Z"
 		},
 		{
-			"checksumSHA1": "t+xHkFcaPuAVgec1W3MNTnSNhXg=",
+			"checksumSHA1": "2ubisn4EiBh2f3qZRDa81BV87hI=",
 			"path": "github.com/dcos/dcos-go/dcos",
-			"revision": "7bf71fc4cf2fdd10f12b3452f7bf40f473db4e1e",
-			"revisionTime": "2017-01-17T23:52:57Z"
+			"revision": "2af18acc1a707e5a527f72aabaae7f5d1c2422d2",
+			"revisionTime": "2017-12-27T21:59:16Z"
 		},
 		{
-			"checksumSHA1": "Qz6GSjmNYD4CiTapDBqbkFAJYCI=",
+			"checksumSHA1": "yJshNw2wIUh7wjASqCgHB2geElk=",
 			"path": "github.com/dcos/dcos-go/dcos/http/transport",
-			"revision": "fae0702ef953feeff2c27e1707b3baacdcf90efc",
-			"revisionTime": "2017-01-19T15:54:30Z"
+			"revision": "2af18acc1a707e5a527f72aabaae7f5d1c2422d2",
+			"revisionTime": "2017-12-27T21:59:16Z"
 		},
 		{
-			"checksumSHA1": "mACB+AX0KOSEZEM6PeOKbdU721I=",
+			"checksumSHA1": "cuR8vvvdfQALp30zrGQhIWZKfPA=",
 			"path": "github.com/dcos/dcos-go/dcos/nodeutil",
-			"revision": "42172ec4c229dde10010d63836a3847b57f0f599",
-			"revisionTime": "2017-11-10T00:56:20Z"
+			"revision": "2af18acc1a707e5a527f72aabaae7f5d1c2422d2",
+			"revisionTime": "2017-12-27T21:59:16Z"
 		},
 		{
-			"checksumSHA1": "H5lLBKWkY3fI0YfusLX/vp7FGJU=",
+			"checksumSHA1": "mCuoKmG5BojkBOtcDfvXsRLipIk=",
 			"path": "github.com/dcos/dcos-go/exec",
-			"revision": "106806e55a0b8ffd17997e743d4b6d6bb856858e",
-			"revisionTime": "2017-10-25T20:27:21Z"
+			"revision": "2af18acc1a707e5a527f72aabaae7f5d1c2422d2",
+			"revisionTime": "2017-12-27T21:59:16Z"
 		},
 		{
 			"checksumSHA1": "U14VXt9bXlwhVLIIBJDzLpYAZXE=",
@@ -105,10 +105,46 @@
 			"revisionTime": "2016-09-14T00:16:04Z"
 		},
 		{
+			"checksumSHA1": "1hwn8cgg4EVXhCpJIqmMbzqnUo0=",
+			"path": "golang.org/x/crypto/ed25519",
+			"revision": "d585fd2cc9195196078f516b69daff6744ef5e84",
+			"revisionTime": "2017-12-16T04:08:15Z"
+		},
+		{
+			"checksumSHA1": "LXFcVx8I587SnWmKycSDEq9yvK8=",
+			"path": "golang.org/x/crypto/ed25519/internal/edwards25519",
+			"revision": "d585fd2cc9195196078f516b69daff6744ef5e84",
+			"revisionTime": "2017-12-16T04:08:15Z"
+		},
+		{
 			"checksumSHA1": "vu7njn8O4vhFtmgGWntwjA2NAbk=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9",
 			"revisionTime": "2016-09-14T20:33:16Z"
+		},
+		{
+			"checksumSHA1": "Qq9iBb+/Hjnydxe0Ait/ouqX7yE=",
+			"path": "gopkg.in/square/go-jose.v2",
+			"revision": "f8f38de21b4dcd69d0413faf231983f5fd6634b1",
+			"revisionTime": "2017-09-13T18:28:36Z"
+		},
+		{
+			"checksumSHA1": "Ho5sr2GbiR8S35IRni7vC54d5Js=",
+			"path": "gopkg.in/square/go-jose.v2/cipher",
+			"revision": "f8f38de21b4dcd69d0413faf231983f5fd6634b1",
+			"revisionTime": "2017-09-13T18:28:36Z"
+		},
+		{
+			"checksumSHA1": "JFun0lWY9eqd80Js2iWsehu1gc4=",
+			"path": "gopkg.in/square/go-jose.v2/json",
+			"revision": "f8f38de21b4dcd69d0413faf231983f5fd6634b1",
+			"revisionTime": "2017-09-13T18:28:36Z"
+		},
+		{
+			"checksumSHA1": "36YSMA8/CXxaomaM6bXrq1Gt7Rs=",
+			"path": "gopkg.in/square/go-jose.v2/jwt",
+			"revision": "f8f38de21b4dcd69d0413faf231983f5fd6634b1",
+			"revisionTime": "2017-09-13T18:28:36Z"
 		}
 	],
 	"rootPath": "github.com/dcos/dcos-log"
