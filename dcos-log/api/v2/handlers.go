@@ -507,6 +507,12 @@ func journalHandler(w http.ResponseWriter, req *http.Request) {
 		logError(w, req, "unable to open journald: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer func() {
+		err := j.Close()
+		if err != nil {
+			logrus.Errorf("error closing journald: %s", err)
+		}
+	}()
 
 	// Set response headers.
 	w.Header().Set("Content-Type", entryFormatter.GetContentType().String())
