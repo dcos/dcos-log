@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -169,8 +168,6 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 
 	// for streaming endpoints and SSE logs format we include id: CursorID before each log entry.
 	entryFormatter := reader.NewEntryFormatter(req.Header.Get("Accept"), stream)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// get a list of matches from request path
 	matches := pathMatches(req)
@@ -243,15 +240,15 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 		httpError(w, fmt.Sprintf("Error opening journal reader: %s", err), http.StatusInternalServerError, req)
 		return
 	}
-
 	requestStartTime := time.Now()
-	go func() {
-		select {
-		case <-ctx.Done():
-			j.Journal.Close()
-			logrus.Debugf("Request done in %s, URI: %s, remote addr: %s", time.Since(requestStartTime).String(),
-				req.RequestURI, req.RemoteAddr)
+
+	defer func() {
+		err := j.Journal.Close()
+		if err != nil {
+			logrus.Errorf("error closing journal %s", err)
 		}
+		logrus.Debugf("Request done in %s, URI: %s, remote addr: %s", time.Since(requestStartTime).String(),
+			req.RequestURI, req.RemoteAddr)
 	}()
 
 	w.Header().Set("Content-Type", entryFormatter.GetContentType().String())
