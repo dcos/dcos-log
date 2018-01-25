@@ -8,9 +8,10 @@ info:
     Note that the endpoints in this spec are all *service-specific*. dcos-log
     is designed to be put behind Admin Router, which provides security for these
     endpoints. Therefore, on a DC/OS cluster, the final URL to query will resemble:
-        http://<host>/system/v1/agent/<agent-id>/logs/v1/<endpoint>
-    For more information, please consult the project documentation located at
-    <https://github.com/dcos/dcos-log>.
+    `http://{cluster-url}/system/v1/agent/{agent-id}/logs/v1/{resource-path}`
+    For more information, see
+    [DC/OS Logging](http://localhost:3000/docs/latest/monitoring/logging/) or
+    the [DC/OS Log Source](https://github.com/dcos/dcos-log).
 basePath: "/v1"
 parameters:
   filter:
@@ -62,6 +63,8 @@ paths:
     get:
       description: |
         Gets a range of logs from the beggining of the journal.
+      tags:
+        - range
       parameters:
         - $ref: "#/parameters/filter"
         - $ref: "#/parameters/limit"
@@ -85,6 +88,8 @@ paths:
     get:
       description: |
         Download compressed logs.
+      tags:
+        - range
       parameters:
         - $ref: "#/parameters/filter"
         - $ref: "#/parameters/limit"
@@ -109,6 +114,8 @@ paths:
     get:
       description: |
         Gets a range of task logs.
+      tags:
+        - range
       parameters:
         - $ref: "#/parameters/filter"
         - $ref: "#/parameters/limit"
@@ -132,6 +139,8 @@ paths:
     get:
       description: |
         Download compressed task logs.
+      tags:
+        - range
       parameters:
         - $ref: "#/parameters/filter"
         - $ref: "#/parameters/limit"
@@ -156,6 +165,8 @@ paths:
     get:
       description: |
         Stream the log entries back to client with Server-Sent-Events.
+      tags:
+        - stream
       parameters:
         - $ref: "#/parameters/filter"
         - $ref: "#/parameters/limit"
@@ -177,6 +188,8 @@ paths:
     get:
       description: |
         Stream the task log entries back to client with Server-Sent-Events.
+      tags:
+        - stream
       parameters:
         - $ref: "#/parameters/filter"
         - $ref: "#/parameters/limit"
@@ -198,6 +211,8 @@ paths:
     get:
       description: |
         Get all available unique values for a given field.
+      tags:
+        - fields
       responses:
         200:
           description: Successful response.
