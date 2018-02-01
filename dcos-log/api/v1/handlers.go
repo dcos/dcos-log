@@ -290,10 +290,11 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		case <-time.After(time.Second):
-			{
-				io.Copy(w, j)
-				f.Flush()
+			err := j.Follow(time.Millisecond * 100, w)
+			if err != nil {
+				logrus.Errorf("error reading journal %s", err)
 			}
+			f.Flush()
 		}
 	}
 }
