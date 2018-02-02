@@ -1,17 +1,17 @@
 swagger: '2.0'
 
 info:
-  version: "0.0.1"
+  version: "0.0.2"
   title: DC/OS Log API
   description: >
-    The first version of the DC/OS Log API.
+    The second version of the DC/OS Log API.
     Note that the endpoints in this spec are all *service-specific*. dcos-log
     is designed to be put behind Admin Router, which provides security for these
     endpoints. Therefore, on a DC/OS cluster, the final URL to query will resemble:
         http://<host>/system/v1/agent/<agent-id>/logs/v1/<endpoint>
     For more information, please consult the project documentation located at
     <https://github.com/dcos/dcos-log>.
-basePath: "/v1"
+basePath: "/"
 parameters:
   filter:
     name: filter
@@ -42,7 +42,7 @@ parameters:
   cursor:
     name: cursor
     in: query
-    description: Move current cursor to provided cursor position.
+    description: Move current cursor to provided cursor position. In v2 for task logs it could be bytes offset or special values BEG and END. For component logs it should be either special words BEG, END or journald curor string.
     required: false
     type: string
   read_reverse:
@@ -57,8 +57,14 @@ parameters:
     description: Set file name.
     required: false
     type: string
+  skip:
+    name: skip
+    in: query
+    description: Skip n lines from the cursor. Can be negative value meaning moving the position backwards.
+    required: false
+    type: integer
 paths:
-  /range/:
+  /v1/range/:
     get:
       description: |
         Gets a range of logs from the beggining of the journal.
@@ -81,7 +87,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /range/download:
+  /v1/range/download:
     get:
       description: |
         Download compressed logs.
@@ -105,7 +111,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /range/framework/<framework_id>/executor/<executor_id>/container/<container_id>:
+  /v1/range/framework/<framework_id>/executor/<executor_id>/container/<container_id>:
     get:
       description: |
         Gets a range of task logs.
@@ -128,7 +134,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /range/framework/<framework_id>/executor/<executor_id>/container/<container_id>/download:
+  /v1/range/framework/<framework_id>/executor/<executor_id>/container/<container_id>/download:
     get:
       description: |
         Download compressed task logs.
@@ -152,7 +158,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /stream/:
+  /v1/stream/:
     get:
       description: |
         Stream the log entries back to client with Server-Sent-Events.
@@ -173,7 +179,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /stream/framework/<framework_id>/executor/<executor_id>/container/<container_id>:
+  /v1/stream/framework/<framework_id>/executor/<executor_id>/container/<container_id>:
     get:
       description: |
         Stream the task log entries back to client with Server-Sent-Events.
@@ -194,7 +200,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /fields/<field>:
+  /v1/fields/<field>:
     get:
       description: |
         Get all available unique values for a given field.
@@ -214,3 +220,238 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
+
+  /v2/task/<task-id>:
+    get:
+      description: |
+        Read default `stdout` file for the given task. Available on master nodes.
+      parameters:
+        - $ref: "#/parameters/filter"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/skip"
+        - $ref: "#/parameters/cursor"
+      responses:
+        200:
+          description: Successful response.
+        404:
+          description: Task not found.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+  
+  /v2/task/<task-id>/file/<filename>:
+    get:
+      description: |
+        Read the <filename> for the given task. Available on master nodes.
+      parameters:
+        - $ref: "#/parameters/filter"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/skip"
+        - $ref: "#/parameters/cursor"
+      responses:
+        200:
+          description: Successful response.
+        404:
+          description: Task not found.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+
+  /v2/component:
+    get:
+      description: |
+        Read the journald logs. Available on all nodes.
+      parameters:
+        - $ref: "#/parameters/filter"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/skip"
+        - $ref: "#/parameters/cursor"
+      responses:
+        200:
+          description: Successful response.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+  
+  /v2/component/<name>:
+    get:
+      description: |
+        Read the journald logs for a given component name. Available on all nodes.
+      parameters:
+        - $ref: "#/parameters/filter"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/skip"
+        - $ref: "#/parameters/cursor"
+      responses:
+        200:
+          description: Successful response.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+
+  /v2/task/frameworks/<framework-id>/executors/<executor-id>/runs/<id>/files/browse:
+    get:
+      description: |
+          Browse sandbox files for a given single task
+      responses:
+        200:
+          description: Successful response.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+
+  /v2/task/frameworks/<framework-id>/executors/<executor-id>/runs/<id>/tasks/<container-id>/files/browse:
+      get:
+        description: |
+            Browse sandbox files for a given pod task.
+        responses:
+          200:
+            description: Successful response.
+          400:
+            description: Bad request, field not found.
+          401:
+            description: Not authorized.
+          500:
+            description: Internal server error.
+
+  /v2/task/frameworks/<framework-id>/executors/<executor-id>/runs/<id>/tasks/<container-id>/<file>:
+    get:
+      description: |
+          Read the POD task log. framework-id, executor-id, id, container-id and file are required task unique parameters. Available on agent nodes.
+      parameters:
+        - $ref: "#/parameters/filter"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/skip"
+        - $ref: "#/parameters/cursor"
+      responses:
+        200:
+          description: Successful response.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+
+  /v2/task/frameworks/<framework-id>/executors/<executor-id>/runs/<id>/tasks/<container-id>/<file>/download:
+    get:
+      description: |
+          Download the POD task log. framework-id, executor-id, id, container-id and file are required task unique parameters. Available on agent nodes.
+      responses:
+        200:
+          description: Successful response.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+
+  /v2/task/frameworks/<framework-id>/executors/<executor-id>/runs/<container-id>/<file>:
+    get:
+      description: |
+          Read the SINGLE task log. framework-id, executor-id, container-id and file are required task unique parameters. Available on agent nodes.
+      parameters:
+        - $ref: "#/parameters/filter"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/skip"
+        - $ref: "#/parameters/cursor"
+      responses:
+        200:
+          description: Successful response.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+
+  /v2/task/frameworks/<framework-id>/executors/<executor-id>/runs/<container-id>/<file>/download:
+    get:
+      description: |
+          Download the SINGLE task log. framework-id, executor-id, container-id and file are required task unique parameters. Available on agent nodes.
+      responses:
+        200:
+          description: Successful response.
+        400:
+          description: Bad request, field not found.
+        401:
+          description: Not authorized.
+        500:
+          description: Internal server error.
+
+  /v2/task/<task-id>/file/<file_name>:
+      get:
+        description: |
+            This endpoint discovers the metadata assosiated with a given <task-id> and redirects to a specific endpoint on agent node. Reading <file_name> file.
+        parameters:
+        - $ref: "#/parameters/filter"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/skip"
+        - $ref: "#/parameters/cursor"
+        responses:
+          200:
+            description: Successful response.
+          400:
+            description: Bad request, field not found.
+          401:
+            description: Not authorized.
+          500:
+            description: Internal server error.
+
+  /v2/task/<task-id>/browse:
+      get:
+        description: |
+            This endpoint discovers the metadata assosiated with a given <task-id> and redirects to a specific browsing endpoint on agent node.
+        responses:
+          200:
+            description: Successful response.
+          400:
+            description: Bad request, field not found.
+          401:
+            description: Not authorized.
+          500:
+            description: Internal server error.
+
+  /v2/task/<task-id>/download:
+      get:
+        description: |
+            Download stdout for a given <task-id>
+        responses:
+          200:
+            description: Successful response.
+          400:
+            description: Bad request, field not found.
+          401:
+            description: Not authorized.
+          500:
+            description: Internal server error.
+
+  /v2/task/<task-id>/file/<file_name>/download:
+      get:
+        description: |
+            Download <file_name> for a given <task-id>
+        responses:
+          200:
+            description: Successful response.
+          400:
+            description: Bad request, field not found.
+          401:
+            description: Not authorized.
+          500:
+            description: Internal server error.
