@@ -111,7 +111,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /v1/range/framework/<framework_id>/executor/<executor_id>/container/<container_id>:
+  /v1/range/framework/<framework-id>/executor/<executor-id>/container/<container-id>:
     get:
       description: |
         Gets a range of task logs.
@@ -134,7 +134,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /v1/range/framework/<framework_id>/executor/<executor_id>/container/<container_id>/download:
+  /v1/range/framework/<framework-id>/executor/<executor-id>/container/<container-id>/download:
     get:
       description: |
         Download compressed task logs.
@@ -179,7 +179,7 @@ paths:
           description: Not authorized.
         500:
           description: Internal server error.
-  /v1/stream/framework/<framework_id>/executor/<executor_id>/container/<container_id>:
+  /v1/stream/framework/<framework-id>/executor/<executor-id>/container/<container-id>:
     get:
       description: |
         Stream the task log entries back to client with Server-Sent-Events.
@@ -395,10 +395,10 @@ paths:
         500:
           description: Internal server error.
 
-  /v2/task/<task-id>/file/<file_name>:
+  /v2/task/<task-id>/file/<file-name>:
       get:
         description: |
-            This endpoint discovers the metadata assosiated with a given <task-id> and redirects to a specific endpoint on agent node. Reading <file_name> file.
+            This endpoint discovers the metadata assosiated with a given <task-id> and redirects to a specific endpoint on agent node. Reading <file-name> file.
         parameters:
         - $ref: "#/parameters/filter"
         - $ref: "#/parameters/limit"
@@ -442,7 +442,7 @@ paths:
           500:
             description: Internal server error.
 
-  /v2/task/<task-id>/file/<file_name>/download:
+  /v2/task/<task-id>/file/<file-name>/download:
       get:
         description: |
             Download <file-name> for a given <task-id>
