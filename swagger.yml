@@ -42,7 +42,7 @@ parameters:
   cursor:
     name: cursor
     in: query
-    description: Move current cursor to provided cursor position. In v2 for task logs it could be bytes offset or special values BEG and END. For component logs it should be either special words BEG, END or journald curor string.
+    description: Move current cursor to provided cursor position. In v2 for task logs it could be bytes offset or special values BEG and END. For component logs it should be either special words BEG, END or journald cursor string.
     required: false
     type: string
   read_reverse:
@@ -60,7 +60,7 @@ parameters:
   skip:
     name: skip
     in: query
-    description: Skip n lines from the cursor. Can be negative value meaning moving the position backwards.
+    description: Skip N lines from the cursor. Can be negative value meaning moving the position backwards.
     required: false
     type: integer
 paths:
@@ -236,12 +236,12 @@ paths:
         404:
           description: Task not found.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
           description: Internal server error.
-  
+
   /v2/task/<task-id>/file/<filename>:
     get:
       description: |
@@ -257,7 +257,7 @@ paths:
         404:
           description: Task not found.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
@@ -266,7 +266,7 @@ paths:
   /v2/component:
     get:
       description: |
-        Read the journald logs. Available on all nodes.
+        Read the entire journald log. Available on all nodes.
       parameters:
         - $ref: "#/parameters/filter"
         - $ref: "#/parameters/limit"
@@ -276,12 +276,12 @@ paths:
         200:
           description: Successful response.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
           description: Internal server error.
-  
+
   /v2/component/<name>:
     get:
       description: |
@@ -295,7 +295,7 @@ paths:
         200:
           description: Successful response.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
@@ -309,7 +309,7 @@ paths:
         200:
           description: Successful response.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
@@ -318,12 +318,12 @@ paths:
   /v2/task/frameworks/<framework-id>/executors/<executor-id>/runs/<id>/tasks/<container-id>/files/browse:
       get:
         description: |
-            Browse sandbox files for a given pod task.
+            Browse sandbox files for a given POD task.
         responses:
           200:
             description: Successful response.
           400:
-            description: Bad request, field not found.
+            description: Bad request.
           401:
             description: Not authorized.
           500:
@@ -342,7 +342,7 @@ paths:
         200:
           description: Successful response.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
@@ -356,7 +356,7 @@ paths:
         200:
           description: Successful response.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
@@ -375,7 +375,7 @@ paths:
         200:
           description: Successful response.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
@@ -389,7 +389,7 @@ paths:
         200:
           description: Successful response.
         400:
-          description: Bad request, field not found.
+          description: Bad request.
         401:
           description: Not authorized.
         500:
@@ -408,7 +408,7 @@ paths:
           200:
             description: Successful response.
           400:
-            description: Bad request, field not found.
+            description: Bad request.
           401:
             description: Not authorized.
           500:
@@ -422,7 +422,7 @@ paths:
           200:
             description: Successful response.
           400:
-            description: Bad request, field not found.
+            description: Bad request.
           401:
             description: Not authorized.
           500:
@@ -436,7 +436,7 @@ paths:
           200:
             description: Successful response.
           400:
-            description: Bad request, field not found.
+            description: Bad request.
           401:
             description: Not authorized.
           500:
@@ -445,12 +445,12 @@ paths:
   /v2/task/<task-id>/file/<file_name>/download:
       get:
         description: |
-            Download <file_name> for a given <task-id>
+            Download <file-name> for a given <task-id>
         responses:
           200:
             description: Successful response.
           400:
-            description: Bad request, field not found.
+            description: Bad request.
           401:
             description: Not authorized.
           500:
