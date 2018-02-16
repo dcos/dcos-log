@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/coreos/go-systemd/sdjournal"
+	"github.com/Sirupsen/logrus"
 )
 
 var (
@@ -44,9 +47,18 @@ func OptionMatch(m []JournalEntryMatch) Option {
 			return ErrUninitializedReader
 		}
 
-		for _, match := range m {
-			r.Journal.AddMatch(match.String())
+		fn := func(journal *sdjournal.Journal) {
+			for _, match := range m {
+				journal.AddMatch(match.String())
+				logrus.Infof("adding AND match %s", match)
+			}
 		}
+
+		// apply matches for current optional parameter
+		fn(r.Journal)
+
+		// store the function in case we need to re-apply the matches
+		r.matchFns = append(r.matchFns, fn)
 
 		return nil
 	}
@@ -60,10 +72,19 @@ func OptionMatchOR(m []JournalEntryMatch) Option {
 			return ErrUninitializedReader
 		}
 
-		for _, match := range m {
-			r.Journal.AddMatch(match.String())
-			r.Journal.AddDisjunction()
+		fn := func(journal *sdjournal.Journal) {
+			for _, match := range m {
+				journal.AddMatch(match.String())
+				journal.AddDisjunction()
+				logrus.Infof("adding OR match %s", match)
+			}
 		}
+
+		// apply matches for current optional parameter
+		fn(r.Journal)
+
+		// store the function in case we need to re-apply the matches
+		r.matchFns = append(r.matchFns, fn)
 
 		return nil
 	}
