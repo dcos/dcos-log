@@ -594,14 +594,12 @@ func journalHandler(w http.ResponseWriter, req *http.Request) {
 				logrus.Debugf("closing a client connection.")
 				return
 			}
-		case <-time.After(time.Second):
-			{
-				_, err := io.Copy(w, j)
-				if err != nil {
-					logrus.Errorf("error while reading journald: %s. Request: %s", err, req.RequestURI)
-				}
-				f.Flush()
+		case <- time.After(time.Second):
+			err := j.Follow(time.Millisecond * 100, w)
+			if err != nil {
+				logrus.Errorf("error reading journal %s", err)
 			}
+			f.Flush()
 		}
 	}
 
