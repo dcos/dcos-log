@@ -56,6 +56,10 @@ type Reader struct {
 	contentFormatter EntryFormatter
 	// n represents the number of logs read.
 	n uint64
+
+	// matchFns contains a list of match functions the user used in the original constructor.
+	// this is useful to re-apply matches in some cases (for instance journald rotation)
+	matchFns []func(journal *sdjournal.Journal)
 }
 
 // SkipNext skips a journal by n entries forward.
