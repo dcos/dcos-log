@@ -18,9 +18,10 @@ trap cleanup EXIT
 docker exec --help
 
 echo "Starting container that is running systemd and journald..."
+echo "current dir is ${CURRENT_DIR}"
 docker run \
 	-d \
-	-v ${CURRENT_DIR}/..:${PKG_DIR}/${BINARY_NAME} \
+	-v ${CURRENT_DIR}:${PKG_DIR}/${BINARY_NAME} \
 	--privileged \
 	--rm \
 	--name ${CONTAINER_NAME}  \
