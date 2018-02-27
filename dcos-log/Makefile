@@ -18,7 +18,13 @@ gofmt:
 
 lint: docker
 	@echo "+$@"
-	golint -set_exit_status ./...
+	docker run \
+		-v $(CURRENT_DIR)/..:$(PKG_DIR)/$(BINARY_NAME) \
+		-w $(DCOS_LOG_PKG_DIR) \
+		--privileged \
+		--rm \
+		$(IMAGE_NAME) \
+		golint -set_exit_status ./...
 
 test: docker lint vet
 	@echo "+$@"
