@@ -6,6 +6,7 @@
 # the go test suite. Before the script exits, it will destroy the container.
 
 set -e # exit on failure
+set -o xtrace # print each command
 
 cleanup() {
 	echo "Cleaning up the container..."
