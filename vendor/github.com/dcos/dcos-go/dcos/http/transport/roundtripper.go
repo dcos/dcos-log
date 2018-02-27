@@ -16,6 +16,7 @@ package transport
 
 import (
 	"bytes"
+	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,7 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"gopkg.in/square/go-jose.v2"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 // ErrTokenRefresh is an error type returned by `RoundTrip` if the bouncer response was not 200.
@@ -45,10 +47,11 @@ var (
 
 type dcosRoundtripper struct {
 	sync.Mutex
-	token                      string
-	expire                     time.Duration
-	uid, secret, loginEndpoint string
-	transport                  http.RoundTripper
+	token              string
+	expire             time.Duration
+	uid, loginEndpoint string
+	secret             *rsa.PrivateKey
+	transport          http.RoundTripper
 }
 
 // Debug is an interface which defines methods to generate a token and get the latest generated token.
@@ -94,12 +97,19 @@ func (t *dcosRoundtripper) GenerateToken() error {
 	t.Lock()
 	defer t.Unlock()
 
-	// TODO: this is very broken with the latest `jwt-go` lib version 3.0.0
-	token := jwt.New(jwt.SigningMethodRS256)
-	token.Claims["uid"] = t.uid
-	token.Claims["exp"] = time.Now().Add(t.expire).Unix()
+	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: t.secret}, (&jose.SignerOptions{}).WithType("JWT"))
+	if err != nil {
+		return err
+	}
 
-	tokenStr, err := token.SignedString([]byte(t.secret))
+	cl := struct {
+		UID string `json:"uid"`
+		Exp int64  `json:"exp"`
+	}{
+		t.uid,
+		time.Now().Add(t.expire).Unix(),
+	}
+	tokenStr, err := jwt.Signed(sig).Claims(cl).CompactSerialize()
 	if err != nil {
 		return err
 	}
