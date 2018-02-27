@@ -6,13 +6,16 @@
 # the go test suite. Before the script exits, it will destroy the container.
 
 set -e # exit on failure
-set -o xtrace # print each command
+set -x # print each command
 
 cleanup() {
 	echo "Cleaning up the container..."
 	docker rm -f ${CONTAINER_NAME} >/dev/null
 }
 trap cleanup EXIT
+
+# print docker options
+docker exec --help
 
 echo "Starting container that is running systemd and journald..."
 docker run \
