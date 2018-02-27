@@ -9,7 +9,10 @@ set -e # exit on failure
 set -x # print each command
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd $DIR
+cd $DIR/../..
+echo "now pwd is $(pwd)"
+echo "Listing files"
+ls -l
 
 cleanup() {
 	echo "Cleaning up the container..."
@@ -17,23 +20,25 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Listing files"
-ls -l
-
 echo "Starting container that is running systemd and journald..."
 echo "current dir is ${CURRENT_DIR}"
 docker run \
 	-d \
-	-v ${DIR}/../..:${PKG_DIR}/${BINARY_NAME} \
+	-v $(pwd):${PKG_DIR}/${BINARY_NAME} \
 	--privileged \
 	--rm \
 	--name ${CONTAINER_NAME}  \
 	${IMAGE_NAME} \
 	/sbin/init >/dev/null
 
+echo "Debugging files"
+docker exec \
+	${CONTAINER_NAME} \
+	ls -l /go/src/github.com/dcos/dcos-log
+
+
 echo "Running tests against that container..."
 docker exec \
 	${CONTAINER_NAME} \
-	bash -c 'cd /go/src/github.com/dcos/dcos-log &&
-		/usr/local/go/bin/go test -race -cover -test.v $(go list ./...|grep -v vendor)'
+	bash -c "cd /go/src/github.com/dcos/dcos-log/dcos-log && /usr/local/go/bin/go test -race -cover -test.v ./..."
 
