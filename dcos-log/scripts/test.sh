@@ -17,8 +17,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# print docker options
-docker exec --help
+echo "Listing files"
+ls -l
 
 echo "Starting container that is running systemd and journald..."
 echo "current dir is ${CURRENT_DIR}"
