@@ -30,5 +30,5 @@ docker run \
 echo "Running tests against that container..."
 docker exec \
 	${CONTAINER_NAME} \
-	bash -c "cd /go/src/github.com/dcos/dcos-log/dcos-log && go test -race -cover -test.v ./..."
+	bash -c "cd /go/src/github.com/dcos/dcos-log/dcos-log && go test -race -cover -test.v $(go list ./...|grep -v vendor)"
 
