@@ -2,11 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/sirupsen/logrus"
-  packages = ["."]
-  revision = "3ec0642a7fb6488f65b06f9040adc67e3990296a"
-
-[[projects]]
   name = "github.com/coreos/go-systemd"
   packages = [
     "activation",
@@ -41,6 +36,11 @@
   name = "github.com/gorilla/mux"
   packages = ["."]
   revision = "757bef944d0f21880861c2dd9c871ca543023cba"
+
+[[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "3ec0642a7fb6488f65b06f9040adc67e3990296a"
 
 [[projects]]
   name = "github.com/xeipuuv/gojsonpointer"
@@ -85,6 +85,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "68aa99bfd519195173eda7b9272ff8d457aa8c3deb1d74cf304cb0ea4edfb330"
+  inputs-digest = "b714821bae7c15e6a496ad1ba1fb387ab1dfdd70d8a4a4bd19bf64f4bab6232d"
   solver-name = "gps-cdcl"
   solver-version = 1
