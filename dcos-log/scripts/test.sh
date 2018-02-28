@@ -26,12 +26,18 @@ docker run \
 	${IMAGE_NAME} \
 	/sbin/init >/dev/null
 
+echo "Installing code in the container..."
+docker exec \
+	${CONTAINER_NAME} \
+	bash -c '\
+		cd /go/src/github.com/dcos/dcos-log && \
+		go install $(go list github.com/dcos/dcos-log/...|grep -v vendor)'
+
 echo "Running tests against that container..."
 docker exec \
 	${CONTAINER_NAME} \
 	bash -c '\
 		cd /go/src/github.com/dcos/dcos-log && \
-		go install $(go list github.com/dcos/dcos-log/...|grep -v vendor) && \
 		go test -race -cover -test.v $(go list ./...|grep -v vendor)'
 
 
