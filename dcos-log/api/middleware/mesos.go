@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"github.com/dcos/dcos-log/dcos-log/config"
 )

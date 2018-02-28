@@ -15,7 +15,10 @@
 package transport
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -86,9 +89,22 @@ func OptionCredentials(uid, secret, loginEndpoint string) OptionRoundtripperFunc
 			return ErrInvalidCredentials
 		}
 		j.uid = uid
-		j.secret = secret
 		j.loginEndpoint = loginEndpoint
-		return nil
+
+		block, _ := pem.Decode([]byte(secret))
+		if block == nil {
+			return ErrInvalidCredentials
+		}
+		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return ErrInvalidCredentials
+		}
+		if key, ok := key.(*rsa.PrivateKey); ok {
+			j.secret = key
+			return nil
+		}
+
+		return ErrInvalidCredentials
 	}
 }
 
