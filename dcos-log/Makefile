@@ -1,6 +1,14 @@
+IMAGE_NAME=dcos-log-dev
+CONTAINER_NAME=$(IMAGE_NAME)-test
+BUILD_DIR=build
+CURRENT_DIR=$(shell pwd)
+BINARY_NAME=dcos-log
+PKG_DIR=/go/src/github.com/dcos
+DCOS_LOG_PKG_DIR=$(PKG_DIR)/dcos-log/dcos-log
+
 all: lint vet test build
 
-install:
+install: docker
 	@echo "+$@"
 	go install
 
@@ -8,24 +16,52 @@ gofmt:
 	@echo "+$@"
 	go fmt ./...
 
-lint:
+lint: docker
 	@echo "+$@"
-	go get -u github.com/golang/lint/golint
-	golint -set_exit_status ./...
+	docker run \
+		-v $(CURRENT_DIR)/..:$(PKG_DIR)/$(BINARY_NAME) \
+		-w $(DCOS_LOG_PKG_DIR) \
+		--privileged \
+		--rm \
+		$(IMAGE_NAME) \
+		golint -set_exit_status ./...
 
-test: lint vet
+test: docker lint vet
 	@echo "+$@"
-	go test -race -cover -test.v ./...
+	@bash -c ' \
+		CURRENT_DIR=$(CURRENT_DIR) \
+		PKG_DIR=$(PKG_DIR) \
+		BINARY_NAME=$(BINARY_NAME) \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		CONTAINER_NAME=$(CONTAINER_NAME) \
+		scripts/test.sh'
 
-build:
+build: docker
 	@echo "+$@"
-	go build
+	mkdir -p $(BUILD_DIR)
+	docker run \
+		-v $(CURRENT_DIR)/..:$(PKG_DIR)/$(BINARY_NAME) \
+		-w $(DCOS_LOG_PKG_DIR) \
+		--privileged \
+		--rm \
+		$(IMAGE_NAME) \
+		go build -v -o $(BUILD_DIR)/$(BINARY_NAME)
 
 clean:
 	@echo "+$@"
-	rm -f dcos-log
+	rm -rf $(BUILD_DIR)
 
-vet:
+vet: docker
 	@echo "+$@"
-	go vet ./...
+	docker run \
+		-v $(CURRENT_DIR)/..:$(PKG_DIR)/$(BINARY_NAME) \
+		-w $(DCOS_LOG_PKG_DIR) \
+		--privileged \
+		--rm \
+		$(IMAGE_NAME) \
+		go vet ./...
+
+.PHONY: docker
+docker:
+	docker build -t $(IMAGE_NAME) .
 
