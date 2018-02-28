@@ -5,6 +5,8 @@ import (
 	"context"
 	"io"
 	"os/exec"
+	"runtime"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -53,6 +55,13 @@ func Run(ctx context.Context, command string, arg []string) (*CommandExecutor, e
 		ctx = context.Background()
 	}
 
+	if runtime.GOOS == "windows" {
+		// For powershell, if running a script we need to execute it with a -File option
+		// otherwise the return code will get lost
+		if len(arg) == 1 && strings.HasSuffix(arg[0], ".ps1") {
+			arg = append([]string{"-File"}, arg...)
+		}
+	}
 	// by default Cancel is spineless unless someone configures an option to enable it
 	commandExecutor := &CommandExecutor{Done: make(chan error, 1), done: make(chan error, 1)}
 
@@ -111,6 +120,13 @@ func FullOutput(c *exec.Cmd) (stdout []byte, stderr []byte, code int, err error)
 	c.Stdout = &outbuf
 	c.Stderr = &errbuf
 
+	if runtime.GOOS == "windows" {
+		// For powershell, if running a script we need to execute it with a -File option
+		// otherwise the return code will get lost
+		if len(c.Args) == 2 && strings.Contains(c.Args[0], "powershell.exe") && strings.HasSuffix(c.Args[1], ".ps1") {
+			c.Args = []string{c.Args[0], "-File", c.Args[1]}
+		}
+	}
 	if err := c.Start(); err != nil {
 		return nil, nil, 0, err
 	}
