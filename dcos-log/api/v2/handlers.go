@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"encoding/json"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"github.com/dcos/dcos-log/dcos-log/api/middleware"

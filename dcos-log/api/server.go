@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/go-systemd/activation"
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/http/transport"
