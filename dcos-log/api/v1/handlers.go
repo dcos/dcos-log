@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/dcos/dcos-log/dcos-log/journal/reader"
 	"github.com/gorilla/mux"
 )
