@@ -2,6 +2,7 @@ package v2
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,14 +14,13 @@ import (
 	"strings"
 	"time"
 
-	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
 	"github.com/dcos/dcos-log/dcos-log/api/middleware"
 	jr "github.com/dcos/dcos-log/dcos-log/journal/reader"
 	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -141,68 +141,116 @@ func setupFilesAPIReader(req *http.Request, urlPath string, opts ...reader.Optio
 		newOpts...)
 }
 
+func optLimit(limitStr string) ([]reader.Option, error) {
+	// return early on empty parameter
+	if limitStr == "" {
+		return nil, nil
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse limit parameter. %s not an integer", limitStr)
+	}
+
+	return []reader.Option{reader.OptLines(limit)}, nil
+}
+
+func optCursor(cursorStr string) ([]reader.Option, error) {
+	// return early on empty parameter
+	if cursorStr == "" {
+		return nil, nil
+	}
+
+	switch cursorStr {
+	case cursorBegParam:
+		return []reader.Option{reader.OptOffset(0)}, nil
+	case cursorEndParam:
+		return []reader.Option{reader.OptReadFromEnd()}, nil
+	default:
+	}
+
+	cursor, err := strconv.Atoi(cursorStr)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse cursor parameter. %s not an integer", cursorStr)
+	}
+
+	return []reader.Option{reader.OptOffset(cursor)}, nil
+}
+
+func optSkip(skipStr string) (opts []reader.Option, err error) {
+	// return early on empty parameter
+	if skipStr == "" {
+		return nil, nil
+	}
+
+	skip, err := strconv.Atoi(skipStr)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse skip parameter. %s not an integer", skipStr)
+	}
+
+	if skip != 0 {
+		opts = append(opts, reader.OptSkip(skip))
+	}
+
+	if skip < 0 {
+		opts = append(opts, reader.OptReadDirection(reader.BottomToTop))
+	}
+
+	return
+}
+
+func lastEventIDHeader(lastEventID string) (reader.Option, bool, error) {
+	// return early on empty parameter
+	if lastEventID == "" {
+		return nil, false, nil
+	}
+
+	offset, err := strconv.Atoi(lastEventID)
+	if err != nil {
+		return nil, false, fmt.Errorf("unable to parse Last-Event-ID header. %s not an integer", lastEventID)
+	}
+
+	return reader.OptOffset(offset), true, nil
+}
+
+func buildOpts(req *http.Request) ([]reader.Option, error) {
+	opt, ok, err := lastEventIDHeader(req.Header.Get("Last-Event-ID"))
+	if err != nil {
+		return nil, err
+	}
+
+	// if the Last-Evet-ID header is present we should ignore the rest of initial parameters
+	// because it indicates the client has reconnected. The Last-Event-ID must have a higher
+	// precedence.
+	if ok {
+		return []reader.Option{opt}, nil
+	}
+
+	var collectedOpts []reader.Option
+	for _, paramFn := range []struct {
+		fn    func(string) ([]reader.Option, error)
+		param string
+	}{
+		{fn: optCursor, param: req.URL.Query().Get(cursorParam)},
+		{fn: optSkip, param: req.URL.Query().Get(skipParam)},
+		{fn: optLimit, param: req.URL.Query().Get(limitParam)},
+	} {
+		opts, err := paramFn.fn(paramFn.param)
+		if err != nil {
+			return nil, err
+		}
+
+		collectedOpts = append(collectedOpts, opts...)
+	}
+
+	return collectedOpts, nil
+}
+
 func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
-	var opts []reader.Option
-	var err error
-
-	var limit int
-	if limitStr := req.URL.Query().Get(limitParam); limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil {
-			logError(w, req, "unable to parse integer "+limitStr, http.StatusBadRequest)
-			return
-		}
-	}
-
-	if limit > 0 {
-		opts = append(opts, reader.OptLines(limit))
-	}
-
-	cursor := -1
-	if cursorStr := req.URL.Query().Get(cursorParam); cursorStr != "" {
-		if cursorStr == cursorBegParam {
-			cursor = 0
-		} else if cursorStr == cursorEndParam {
-			opts = append(opts, reader.OptReadFromEnd())
-		} else {
-			cursor, err = strconv.Atoi(cursorStr)
-			if err != nil {
-				logError(w, req, "unable to parse integer "+cursorStr, http.StatusBadRequest)
-				return
-			}
-
-			if cursor >= 0 {
-				opts = append(opts, reader.OptOffset(cursor))
-			}
-		}
-	}
-
-	var skip int
-	if skipStr := req.URL.Query().Get(skipParam); skipStr != "" {
-		skip, err = strconv.Atoi(skipStr)
-		if err != nil {
-			logError(w, req, "unable to parse integer "+skipStr, http.StatusBadRequest)
-			return
-		}
-
-		if skip != 0 {
-			opts = append(opts, reader.OptSkip(skip))
-		}
-
-		if skip < 0 {
-			opts = append(opts, reader.OptReadDirection(reader.BottomToTop))
-		}
-	}
-
-	lastEventID := req.Header.Get("Last-Event-ID")
-	if lastEventID != "" {
-		offset, err := strconv.Atoi(lastEventID)
-		if err != nil {
-			logError(w, req, fmt.Sprintf("invalid Last-Event-ID: %s", err.Error()), http.StatusInternalServerError)
-			return
-		}
-
-		opts = append(opts, reader.OptOffset(offset))
+	opts, err := buildOpts(req)
+	if err != nil {
+		logError(w, req, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	if req.Header.Get("Accept") == eventStreamContentType {
