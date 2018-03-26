@@ -17,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-
 // AllowedFields contain `Journald Container Logger module` fields except ExecutorInfo.
 // https://github.com/dcos/dcos-mesos-modules/blob/master/journald/README.md#journald-container-logger-module
 var AllowedFields = []string{"FRAMEWORK_ID", "AGENT_ID", "EXECUTOR_ID", "CONTAINER_ID", "STREAM"}
@@ -294,9 +293,10 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		case <-time.After(time.Second):
-			err := j.Follow(time.Millisecond * 100, w)
+			err := j.Follow(time.Millisecond*100, w)
 			if err != nil {
 				logrus.Errorf("error reading journal %s", err)
+				return
 			}
 			f.Flush()
 		}

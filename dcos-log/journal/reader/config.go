@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-systemd/sdjournal"
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/go-systemd/sdjournal"
 )
 
 var (
@@ -50,7 +50,6 @@ func OptionMatch(m []JournalEntryMatch) Option {
 		fn := func(journal *sdjournal.Journal) {
 			for _, match := range m {
 				journal.AddMatch(match.String())
-				logrus.Infof("adding AND match %s", match)
 			}
 		}
 
