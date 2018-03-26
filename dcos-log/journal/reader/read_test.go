@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/coreos/go-systemd/journal"
+	"bytes"
+	"context"
+	"io"
 )
 
 func getUniqueString() string {
@@ -193,5 +196,70 @@ func TestOptionMatchOR(t *testing.T) {
 
 	if size != 2 {
 		t.Fatalf("Expecting to find 2 entries, got %d", size)
+	}
+}
+
+func TestFollow(t *testing.T) {
+	id := getUniqueString()
+	ctx, cancel := context.WithCancel(context.Background())
+	ack := make(chan bool)
+
+	go func() {
+		for i := 0; i < 10; i++ {
+
+			journal.Send(fmt.Sprintf("test %s - %d", id, i), journal.PriInfo, map[string]string{"TEST_ID": id})
+			<-ack
+		}
+		cancel()
+	}()
+
+	r, err := NewReader(FormatJSON{}, OptionMatchOR([]JournalEntryMatch{
+		{
+			Field: "TEST_ID",
+			Value: id,
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type logEntry struct {
+		Fields map[string]string `json:"fields"`
+	}
+
+	messageCounter := 0
+	for {
+		select {
+		case <- ctx.Done():
+			if messageCounter != 10 {
+				t.Fatalf("expecting to validate 10 log entries. Validated only %d", messageCounter)
+			}
+			return
+		case <-time.After(time.Second):
+			t.Fatal("too much time to read journal")
+		default:
+			buf := new(bytes.Buffer)
+			r.Follow(time.Second, buf)
+
+			entry := &logEntry{}
+			err = json.NewDecoder(buf).Decode(entry)
+			if err != nil {
+				if err == io.EOF {
+					continue
+				}
+				t.Fatal(err)
+			}
+			expectedMessage := fmt.Sprintf("test %s - %d", id, messageCounter)
+			if entry.Fields["MESSAGE"] != expectedMessage {
+				t.Fatalf("expecting message %s. Got %s", expectedMessage, entry.Fields["MESSAGE"])
+			}
+			messageCounter++
+
+			select {
+			case ack <- true:
+			case <-time.After(time.Second):
+				t.Fatal("too much time to send ack")
+			}
+		}
 	}
 }

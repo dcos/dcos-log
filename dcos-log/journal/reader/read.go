@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-systemd/sdjournal"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrUninitializedReader is the error returned by Reader is contentFormatter wasn't initialized.
@@ -56,6 +57,10 @@ type Reader struct {
 	contentFormatter EntryFormatter
 	// n represents the number of logs read.
 	n uint64
+
+	// matchFns contains a list of match functions the user used in the original constructor.
+	// this is useful to re-apply matches in some cases (for instance journald rotation)
+	matchFns []func(journal *sdjournal.Journal)
 }
 
 // SkipNext skips a journal by n entries forward.
@@ -214,4 +219,71 @@ func (r *Reader) Close() error {
 		return ErrUninitializedReader
 	}
 	return r.Journal.Close()
+}
+
+// Follow is a wrapper function, which can be called multiple times to mimic a journal tailing.
+func (r *Reader) Follow(wait time.Duration, writer io.Writer) error {
+	n, err := io.Copy(writer, r)
+	if err != nil && err != io.EOF {
+		return err
+	}
+
+	// if the number of read lines more then 0, we did not reach the journald bottom and can exit early
+	if n > 0 {
+		return nil
+	}
+
+	// if we reached the journald bottom, we'll have to wait and learn the current status of journald
+	// SD_JOURNAL_INVALIDATE indicates that the journald files were removed from the filesystem and now we need to close
+	// the opened files handlers and reopened with original user parameters.
+	// https://www.freedesktop.org/software/systemd/man/sd_journal_get_fd.html#Return%20Value
+	if r.Journal.Wait(wait) == sdjournal.SD_JOURNAL_INVALIDATE {
+		logrus.Infof("SD_JOURNAL_INVALIDATE, reopened journal")
+
+		cursor, err := r.Journal.GetCursor()
+		if err != nil {
+			return fmt.Errorf("unable to get current cursor: %s", err)
+		}
+
+		// close journal to release the file handler
+		err = r.Journal.Close()
+		if err != nil {
+			return fmt.Errorf("unable to close current instance of journald: %s", err)
+		}
+
+		// open a new journald
+		newJournal, err := sdjournal.NewJournal()
+		if err != nil {
+			return fmt.Errorf("unable to open a new instance of journald: %s", err)
+		}
+
+		// apply the original matches to a new instance of journal
+		// we only need to apply the matches since all other user parameters live in the Reader structure which
+		// was not changed.
+		for _, fn := range r.matchFns {
+			fn(newJournal)
+		}
+
+		// update the journal instance
+		r.Journal = newJournal
+
+		// systemd bug has a weird bug in versions < v236 (a fix for the bug https://github.com/systemd/systemd/pull/5580)
+		// it's quite possible to execute the lines in this block, even if the journald files were not rotated.
+		// So we need to know, if we are in the old journald log or a new one. The easiest method would be
+		// to search for the original journald cursor. If we found the cursor, we are in the same log, otherwise
+		// journald was rotated and we are in a brand new log file and we have to read from the beginning.
+
+		// we want to intentionally ignore the error message, since it would indicate rotated systemd file
+		if err := r.SeekCursor(cursor); err != nil {
+			logrus.Errorf("error search cursor %s. %s", cursor, err)
+		}
+	}
+
+	// other possible statues are
+	// SD_JOURNAL_NOP - means that the journal did not change since the last invocation and we can just exit without
+	// errors.
+	// SD_JOURNAL_APPEND - means that new entries were appended to the end of the journal and next time the client
+	// runs the Follow() function again, they would be displayed. But for now, we can exit without errors.
+
+	return nil
 }
