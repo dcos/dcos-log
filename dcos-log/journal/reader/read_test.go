@@ -208,10 +208,7 @@ func TestFollow(t *testing.T) {
 		for i := 0; i < 10; i++ {
 
 			journal.Send(fmt.Sprintf("test %s - %d", id, i), journal.PriInfo, map[string]string{"TEST_ID": id})
-			select {
-			case <-ack:
-				continue
-			}
+			<-ack
 		}
 		cancel()
 	}()
@@ -242,7 +239,10 @@ func TestFollow(t *testing.T) {
 			t.Fatal("too much time to read journal")
 		default:
 			buf := new(bytes.Buffer)
-			r.Follow(time.Second, buf)
+			err := r.Follow(time.Second, buf)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			entry := &logEntry{}
 			err = json.NewDecoder(buf).Decode(entry)

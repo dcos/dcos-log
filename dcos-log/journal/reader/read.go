@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-systemd/sdjournal"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrUninitializedReader is the error returned by Reader is contentFormatter wasn't initialized.
@@ -274,7 +274,9 @@ func (r *Reader) Follow(wait time.Duration, writer io.Writer) error {
 		// journald was rotated and we are in a brand new log file and we have to read from the beginning.
 
 		// we want to intentionally ignore the error message, since it would indicate rotated systemd file
-		r.SeekCursor(cursor)
+		if err := r.SeekCursor(cursor); err != nil {
+			logrus.Errorf("error search cursor %s. %s", cursor, err)
+		}
 	}
 
 	// other possible statues are

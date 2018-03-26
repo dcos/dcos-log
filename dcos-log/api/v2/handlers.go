@@ -598,6 +598,7 @@ func journalHandler(w http.ResponseWriter, req *http.Request) {
 			err := j.Follow(time.Millisecond * 100, w)
 			if err != nil {
 				logrus.Errorf("error reading journal %s", err)
+				return
 			}
 			f.Flush()
 		}
