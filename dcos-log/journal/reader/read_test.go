@@ -239,10 +239,7 @@ func TestFollow(t *testing.T) {
 			t.Fatal("too much time to read journal")
 		default:
 			buf := new(bytes.Buffer)
-			err := r.Follow(time.Second, buf)
-			if err != nil {
-				t.Fatal(err)
-			}
+			r.Follow(time.Second, buf)
 
 			entry := &logEntry{}
 			err = json.NewDecoder(buf).Decode(entry)
