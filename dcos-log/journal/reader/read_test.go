@@ -2,16 +2,16 @@ package reader
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
 
-	"bytes"
-	"context"
 	"github.com/coreos/go-systemd/journal"
-	"io"
 )
 
 func getUniqueString() string {
