@@ -3,11 +3,7 @@
 
 [[projects]]
   name = "github.com/coreos/go-systemd"
-  packages = [
-    "activation",
-    "journal",
-    "sdjournal"
-  ]
+  packages = ["activation","journal","sdjournal"]
   revision = "5af4316bea2ff5cff219164870b57482993eee59"
 
 [[projects]]
@@ -17,14 +13,10 @@
   version = "v3"
 
 [[projects]]
+  branch = "master"
   name = "github.com/dcos/dcos-go"
-  packages = [
-    "dcos",
-    "dcos/http/transport",
-    "dcos/nodeutil",
-    "exec"
-  ]
-  revision = "2af18acc1a707e5a527f72aabaae7f5d1c2422d2"
+  packages = ["dcos","dcos/http/transport","dcos/nodeutil","exec"]
+  revision = "94313e4784e0a13769f296f3c6da721d454c1230"
 
 [[projects]]
   branch = "master"
@@ -60,10 +52,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = [
-    "ed25519",
-    "ed25519/internal/edwards25519"
-  ]
+  packages = ["ed25519","ed25519/internal/edwards25519"]
   revision = "beaf6a35706e5032ae4c3fcf342c663c069f44d2"
 
 [[projects]]
@@ -73,12 +62,7 @@
 
 [[projects]]
   name = "gopkg.in/square/go-jose.v2"
-  packages = [
-    ".",
-    "cipher",
-    "json",
-    "jwt"
-  ]
+  packages = [".","cipher","json","jwt"]
   revision = "f8f38de21b4dcd69d0413faf231983f5fd6634b1"
   version = "v2.1.3"
 
