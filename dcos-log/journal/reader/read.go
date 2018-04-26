@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/sdjournal"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrUninitializedReader is the error returned by Reader is contentFormatter wasn't initialized.

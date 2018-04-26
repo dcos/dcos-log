@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/sdjournal"
+	"github.com/sirupsen/logrus"
 )
 
 var (
