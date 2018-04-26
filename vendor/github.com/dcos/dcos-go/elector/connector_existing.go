@@ -9,7 +9,7 @@ import "github.com/samuel/go-zookeeper/zk"
 //
 // The existing connection should have already established a session before
 // calling this method
-func ExistingConnection(conn *zk.Conn, events <-chan zk.Event) Connector {
+func ExistingConnection(conn Conn, events <-chan zk.Event) Connector {
 	return &existingConnection{
 		conn:   conn,
 		events: events,
@@ -17,11 +17,11 @@ func ExistingConnection(conn *zk.Conn, events <-chan zk.Event) Connector {
 }
 
 type existingConnection struct {
-	conn   *zk.Conn
+	conn   Conn
 	events <-chan zk.Event
 }
 
-func (e *existingConnection) Connect() (*zk.Conn, <-chan zk.Event, error) {
+func (e *existingConnection) Connect() (Conn, <-chan zk.Event, error) {
 	return e.conn, e.events, nil
 }
 

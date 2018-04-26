@@ -47,7 +47,7 @@ function _goimports()
 function _golint()
 {
     logmsg("Running 'golint' ...")
-    & go get -u github.com/golang/lint/
+    & go get -u github.com/golang/lint/golint
 
     $text = & golint -set_exit_status  $PACKAGES
     fastfail("failed to run golint: $text")
@@ -153,8 +153,7 @@ function main
 {
     $ErrorActionPreference = "Stop"
 
-    Remove-Item .\build -Force -Recurse
-    Remove-Item .\vendor -Force -Recurse
+    Remove-Item .\build -Force -Recurse -ErrorAction Ignore
 
     _getdeps
 

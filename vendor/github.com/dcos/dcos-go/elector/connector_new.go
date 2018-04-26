@@ -45,7 +45,7 @@ type newConnection struct {
 	once  sync.Once
 }
 
-func (c *newConnection) Connect() (*zk.Conn, <-chan zk.Event, error) {
+func (c *newConnection) Connect() (Conn, <-chan zk.Event, error) {
 	connectTimeout := durationOrDefault(c.opts.ConnectTimeout, defaultConnectTimeout)
 	conn, zkEvents, err := zk.Connect(c.addrs, connectTimeout)
 	if err != nil {

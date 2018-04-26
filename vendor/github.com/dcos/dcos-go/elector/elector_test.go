@@ -1,11 +1,14 @@
 package elector
 
 import (
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/dcos/dcos-go/testutils"
 	"github.com/pkg/errors"
+	"github.com/samuel/go-zookeeper/zk"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,6 +17,9 @@ var basePath = "/leader/election/lock"
 var opts = ConnectionOpts{}
 
 func TestZookeeperPartition(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Does not work on Windows yet")
+	}
 	require := require.New(t)
 	zkCtl, err := testutils.StartZookeeper()
 	require.NoError(err)
@@ -37,6 +43,9 @@ func TestZookeeperPartition(t *testing.T) {
 }
 
 func TestExpectedBehavior(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Does not work on Windows yet")
+	}
 	require := require.New(t)
 	zkCtl, err := testutils.StartZookeeper()
 	require.NoError(err)
@@ -182,4 +191,47 @@ func errMsg(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func TestStart_NoDeadlock(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	events := make(chan zk.Event)
+	conn := ConnAdapter{
+		ExistsF: func(p string) (bool, *zk.Stat, error) {
+			defer wg.Done()
+			t.Logf("exists: %q", p)
+			// block until events is writable
+			events <- zk.Event{State: zk.StateSaslAuthenticated}
+			return true, nil, nil
+		},
+		CreateProtectedEphemeralSequentialF: func(string, []byte, []zk.ACL) (string, error) {
+			events <- zk.Event{State: zk.StateSaslAuthenticated}
+			return "protected", nil
+		},
+		ChildrenWF: func(string) ([]string, *zk.Stat, <-chan zk.Event, error) {
+			events <- zk.Event{State: zk.StateSaslAuthenticated}
+			return nil, nil, nil, nil
+		},
+	}
+	ctor := ExistingConnection(conn, events)
+	go func() {
+		defer wg.Done()
+		_, err := Start("id", "base", nil, ctor)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}()
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		wg.Wait()
+	}()
+	select {
+	case <-ch:
+		// we want this to happen because it means that
+		// initialize() isn't blocking event chan processing
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for Start() to complete")
+	}
 }
