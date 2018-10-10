@@ -23,13 +23,12 @@ Pull requests should adhere to the following guidelines:
 
 ## External Libraries
 
-It's somewhat difficult to only rely on the Go stdlib when creating shared libraries.  Certainly if one is already used in the repository do not introduce a new one that does the same thing if at all possible.
-
-Going forward we will be creating guidelines for vendoring dependencies in this project.  You can track the progress of this effort by following [this ticket](https://jira.mesosphere.com/browse/DCOS_OSS-1474).
+This project uses [dep](https://github.com/golang/dep) to manage external dependencies.  This tool vendors external libs into the `/vendor` directory.  There is one set of dependencies for all of the packages that live in this project.  If you need to make a change to one of the dependencies, at the current time it will need to be compatible with all of the packages.  A passing CI build will ensure this.
 
 ## Packages In This Library
 - [jwt/transport](/jwt/transport/README.md) : JWT token support.
 - [store](/store/README.md) : In-Memory key/value store.
+- [zkstore](/zkstore/README.md): ZK-based blob storage.
 - [dcos/nodeutil](/dcos/nodeutil/README.md) : Interact with DC/OS services and variables
 - [elector](/elector/README.md): Leadership election.
 

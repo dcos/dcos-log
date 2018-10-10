@@ -37,11 +37,12 @@ var _ IElector = &Elector{}
 // Elector handles leadership elections
 type Elector struct {
 	acl      []zk.ACL
-	conn     *zk.Conn
+	conn     Conn
 	events   chan Event
 	ident    string       // the ident of the elector
 	basePath string       // where the elector nodes will be created
 	closer   func() error // the connector shutdown func
+	closing  chan struct{}
 
 	mut         sync.Mutex // mut guards the following mutable state:
 	leaderIdent string     // the current leader's ident
@@ -75,16 +76,19 @@ func Start(ident string, basePath string, acl []zk.ACL, connector Connector) (*E
 	if err != nil {
 		return nil, err
 	}
+	closing := make(chan struct{})
+	var closingOnce sync.Once
 	elector := &Elector{
 		acl:      acl,
 		ident:    ident,
 		conn:     conn,
 		basePath: basePath,
 		events:   make(chan Event),
-		closer:   connector.Close,
-	}
-	if err := elector.initialize(); err != nil {
-		return nil, errors.Wrap(err, "elector initialization failed")
+		closing:  closing,
+		closer: func() error {
+			closingOnce.Do(func() { close(closing) })
+			return connector.Close()
+		},
 	}
 	go elector.start(zkEvents)
 	return elector, nil
@@ -140,60 +144,112 @@ func (e *Elector) initialize() error {
 
 func (e *Elector) start(zkEvents <-chan zk.Event) {
 	defer close(e.events)
-	err := func() error {
-		lockPath, err := e.conn.CreateProtectedEphemeralSequential(
-			e.basePath+"/lock-",
-			[]byte(e.ident),
-			e.acl)
-		if err != nil {
-			return errors.Wrap(err, "could not create lock node")
-		}
+	errch := make(chan error, 1)
+	shouldQuit := make(chan struct{})
 
-		firstLeaderUpdate := true
-		updateFunc := func(children []string) error {
-			isLeader, leaderNode, err := determineLeader(lockPath, children)
-			if err != nil {
-				return errors.Wrap(err, "could not determine leader")
-			}
-			leaderIdent, err := e.getIdentFromNode(leaderNode)
-			if err != nil {
-				return errors.Wrap(err, "could not get ident from node")
-			}
-			e.updateLeaderData(leaderIdent, isLeader, firstLeaderUpdate)
-			firstLeaderUpdate = false
-			return nil
-		}
+	var wg sync.WaitGroup
+	var shouldQuitOnce sync.Once
+	cancel := func() { shouldQuitOnce.Do(func() { close(shouldQuit) }) }
 
-		children, _, childEvents, err := e.conn.ChildrenW(e.basePath)
-		if err != nil {
-			return errors.Wrap(err, "could not get children")
-		}
-		if err = updateFunc(children); err != nil {
-			return err
-		}
+	// must spawn this before initialize() to avoid blocking
+	wg.Add(1)
+	go func() {
+		defer cancel()
+		defer wg.Done()
 		for {
 			select {
+			case <-shouldQuit:
+				return
 			case zkEvent := <-zkEvents:
-				if zkEvent.Err != nil {
-					return zkEvent.Err
-				}
-				switch zkEvent.State {
-				case zk.StateExpired, zk.StateAuthFailed, zk.StateDisconnected, zk.StateUnknown:
-					return fmt.Errorf("invalid ZK state: %v", zkEvent.State)
-				}
-			case <-childEvents:
-				children, _, childEvents, err = e.conn.ChildrenW(e.basePath)
-				if err != nil {
-					return errors.Wrap(err, "could not get children")
-				}
-				if err = updateFunc(children); err != nil {
-					return err
+				if err := checkZKEvent(zkEvent); err != nil {
+					select {
+					case errch <- err:
+					default:
+					}
+					return
 				}
 			}
 		}
 	}()
+
+	wg.Add(1)
+	go func() {
+		defer cancel()
+		defer wg.Done()
+		err := func() error {
+			if err := e.initialize(); err != nil {
+				return errors.Wrap(err, "elector initialization failed")
+			}
+			lockPath, err := e.conn.CreateProtectedEphemeralSequential(
+				e.basePath+"/lock-",
+				[]byte(e.ident),
+				e.acl)
+			if err != nil {
+				return errors.Wrap(err, "could not create lock node")
+			}
+
+			firstLeaderUpdate := true
+			updateFunc := func(children []string) error {
+				isLeader, leaderNode, err := determineLeader(lockPath, children)
+				if err != nil {
+					return errors.Wrap(err, "could not determine leader")
+				}
+				leaderIdent, err := e.getIdentFromNode(leaderNode)
+				if err != nil {
+					return errors.Wrap(err, "could not get ident from node")
+				}
+				e.updateLeaderData(leaderIdent, isLeader, firstLeaderUpdate)
+				firstLeaderUpdate = false
+				return nil
+			}
+
+			children, _, childEvents, err := e.conn.ChildrenW(e.basePath)
+			if err != nil {
+				return errors.Wrap(err, "could not get children")
+			}
+			if err = updateFunc(children); err != nil {
+				return err
+			}
+			for {
+				select {
+				case _, ok := <-childEvents:
+					if !ok {
+						return errors.New("child events stream terminated")
+					}
+					children, _, childEvents, err = e.conn.ChildrenW(e.basePath)
+					if err != nil {
+						return errors.Wrap(err, "could not get children")
+					}
+					if err = updateFunc(children); err != nil {
+						return err
+					}
+				case <-shouldQuit:
+					return nil
+				}
+			}
+		}()
+		select {
+		case errch <- err:
+		default:
+		}
+	}()
+
+	wg.Wait()
+	close(errch)
+
 	// the elector errored out unexpectedly. send an error to the client.
-	e.sendErr(err)
+	e.sendErr(<-errch)
+}
+
+func checkZKEvent(zkEvent zk.Event) error {
+	if zkEvent.Err != nil {
+		return zkEvent.Err
+	}
+	switch zkEvent.State {
+	case zk.StateExpired, zk.StateAuthFailed, zk.StateDisconnected, zk.StateUnknown:
+		return fmt.Errorf("invalid ZK state: %v", zkEvent.State)
+	}
+	return nil
 }
 
 // updateLeaderData updates the leadership information on the elector, and also
@@ -225,7 +281,16 @@ func (e *Elector) sendErr(err error) {
 
 // sendEvent sends the specified event on the events channel
 func (e *Elector) sendEvent(event Event) {
-	e.events <- event
+	select {
+	case e.events <- event:
+	case <-e.closing:
+		select {
+		case e.events <- event:
+		default:
+			// drop outgoing events if close was called and there is no
+			// longer a listener awaiting events.
+		}
+	}
 }
 
 // sorted children sequences converts the children to sequence parts, and

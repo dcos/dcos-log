@@ -93,13 +93,6 @@ function _unittest_with_coverage {
 
 # Main.
 function main {
-    # Dependencies required for testing
-    go get -u github.com/kardianos/govendor
-    govendor init
-    govendor fetch gopkg.in/square/go-jose.v2
-    govendor fetch gopkg.in/square/go-jose.v2/jwt
-    govendor fetch github.com/pkg/errors
-
     _gofmt
     _goimports
     _golint
