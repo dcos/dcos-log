@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/dcos/dcos-log/dcos-log/journal/reader"
+	"github.com/dcos/dcos-log/journal/reader"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 // AllowedFields contain `Journald Container Logger module` fields except ExecutorInfo.
@@ -290,7 +290,7 @@ func readJournalHandler(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		case <-time.After(time.Second):
-			err := j.Follow(time.Millisecond * 100, w)
+			err := j.Follow(time.Millisecond*100, w)
 			if err != nil {
 				logrus.Errorf("error reading journal %s", err)
 				return

@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/go-systemd/activation"
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/http/transport"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
-	"github.com/dcos/dcos-log/dcos-log/config"
+	"github.com/dcos/dcos-log/config"
+	"github.com/sirupsen/logrus"
 )
 
 // override the defaultStateURL to use https scheme

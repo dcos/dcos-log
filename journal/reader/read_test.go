@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coreos/go-systemd/journal"
 	"bytes"
 	"context"
 	"io"
+
+	"github.com/coreos/go-systemd/journal"
 )
 
 func getUniqueString() string {
@@ -230,7 +231,7 @@ func TestFollow(t *testing.T) {
 	messageCounter := 0
 	for {
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 			if messageCounter != 10 {
 				t.Fatalf("expecting to validate 10 log entries. Validated only %d", messageCounter)
 			}

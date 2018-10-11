@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/dcos/dcos-go/dcos/nodeutil"
-	"github.com/dcos/dcos-log/dcos-log/api/v1"
-	"github.com/dcos/dcos-log/dcos-log/api/v2"
-	"github.com/dcos/dcos-log/dcos-log/config"
+	"github.com/dcos/dcos-log/api/v1"
+	"github.com/dcos/dcos-log/api/v2"
+	"github.com/dcos/dcos-log/config"
 	"github.com/gorilla/mux"
 )
 

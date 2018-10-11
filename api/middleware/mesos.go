@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/sirupsen/logrus"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
-	"github.com/dcos/dcos-log/dcos-log/config"
+	"github.com/dcos/dcos-log/config"
+	"github.com/sirupsen/logrus"
 )
 
 type key int

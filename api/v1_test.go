@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-systemd/journal"
-	"github.com/dcos/dcos-log/dcos-log/config"
+	"github.com/dcos/dcos-log/config"
 )
 
 func TestRangeServerTextHandler(t *testing.T) {

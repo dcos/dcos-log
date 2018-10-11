@@ -3,13 +3,14 @@ package v2
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"testing"
+
+	"github.com/dcos/dcos-log/mesos/files/reader"
 )
 
 type filesAPIResponse struct {

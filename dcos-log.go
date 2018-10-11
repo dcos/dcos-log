@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
+	"github.com/dcos/dcos-log/api"
+	"github.com/dcos/dcos-log/config"
 	"github.com/sirupsen/logrus"
-	"github.com/dcos/dcos-log/dcos-log/api"
-	"github.com/dcos/dcos-log/dcos-log/config"
 )
 
 func main() {

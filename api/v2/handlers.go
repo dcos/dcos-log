@@ -16,9 +16,9 @@ import (
 
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos-go/dcos/nodeutil"
-	"github.com/dcos/dcos-log/dcos-log/api/middleware"
-	jr "github.com/dcos/dcos-log/dcos-log/journal/reader"
-	"github.com/dcos/dcos-log/dcos-log/mesos/files/reader"
+	"github.com/dcos/dcos-log/api/middleware"
+	jr "github.com/dcos/dcos-log/journal/reader"
+	"github.com/dcos/dcos-log/mesos/files/reader"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -594,8 +594,8 @@ func journalHandler(w http.ResponseWriter, req *http.Request) {
 				logrus.Debugf("closing a client connection.")
 				return
 			}
-		case <- time.After(time.Second):
-			err := j.Follow(time.Millisecond * 100, w)
+		case <-time.After(time.Second):
+			err := j.Follow(time.Millisecond*100, w)
 			if err != nil {
 				logrus.Errorf("error reading journal %s", err)
 				return

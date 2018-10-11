@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"compress/gzip"
+
 	"github.com/gorilla/mux"
 )
 
