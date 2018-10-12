@@ -40,7 +40,7 @@ func newNodeInfo(cfg *config.Config, client *http.Client) (nodeutil.NodeInfo, er
 
 // StartServer is an entry point to dcos-log service.
 func StartServer(cfg *config.Config) error {
-	transportOptions := []transport.OptionTransportFunc{}
+	var transportOptions []transport.OptionTransportFunc
 	if cfg.FlagCACertFile != "" {
 		transportOptions = append(transportOptions, transport.OptionCaCertificatePath(cfg.FlagCACertFile))
 	}
@@ -72,7 +72,7 @@ func StartServer(cfg *config.Config) error {
 		return err
 	}
 
-	listeners, err := activation.Listeners(true)
+	listeners, err := activation.Listeners()
 	if err != nil {
 		return fmt.Errorf("Unable to get listeners: %s", err)
 	}

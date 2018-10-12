@@ -6,6 +6,3 @@ ENV GOPATH /go
 RUN apt-get update && apt-get install -y \
     libsystemd-dev \
     init
-
-RUN go get -u github.com/golang/lint/golint
-
