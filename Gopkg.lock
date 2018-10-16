@@ -2,89 +2,181 @@
 
 
 [[projects]]
+  digest = "1:447eb6847a97064f607d95f6b88bdff6591d752450deb89fd2e580a2725da1c0"
   name = "github.com/coreos/go-systemd"
   packages = [
     "activation",
     "journal",
-    "sdjournal"
+    "sdjournal",
   ]
-  revision = "5af4316bea2ff5cff219164870b57482993eee59"
+  pruneopts = "UT"
+  revision = "39ca1b05acc7ad1220e09f133283b8859a8b71ab"
+  version = "v17"
 
 [[projects]]
+  digest = "1:6e2ff82d2fe11ee35ec8dceb4346b8144a761f1c8655592c4ebe99a92fcec327"
   name = "github.com/coreos/pkg"
   packages = ["dlopen"]
-  revision = "3ac0863d7acf3bc44daf49afef8919af12f704ef"
-  version = "v3"
+  pruneopts = "UT"
+  revision = "97fdf19511ea361ae1c100dd393cc47f8dcfa1e1"
+  version = "v4"
 
 [[projects]]
+  branch = "master"
+  digest = "1:823a8f3fd7600f279a248f2d6b7cc1dd4a17e9070632f3bd656e0b8b6f04c4d1"
   name = "github.com/dcos/dcos-go"
   packages = [
     "dcos",
     "dcos/http/transport",
     "dcos/nodeutil",
-    "exec"
+    "exec",
   ]
-  revision = "2af18acc1a707e5a527f72aabaae7f5d1c2422d2"
+  pruneopts = "UT"
+  revision = "b2b2d14915a3e4e112ae93cad44c9e1997c9ff42"
 
 [[projects]]
-  branch = "master"
+  branch = "travis-1.9"
+  digest = "1:e8f5d9c09a7209c740e769713376abda388c41b777ba8e9ed52767e21acf379f"
+  name = "github.com/golang/lint"
+  packages = [
+    ".",
+    "golint",
+  ]
+  pruneopts = "UT"
+  revision = "883fe33ffc4344bad1ecd881f61afd5ec5d80e0a"
+
+[[projects]]
+  digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
   name = "github.com/gorilla/context"
   packages = ["."]
+  pruneopts = "UT"
   revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  version = "v1.1.1"
 
 [[projects]]
+  digest = "1:e73f5b0152105f18bc131fba127d9949305c8693f8a762588a82a48f61756f5f"
   name = "github.com/gorilla/mux"
   packages = ["."]
-  revision = "757bef944d0f21880861c2dd9c871ca543023cba"
+  pruneopts = "UT"
+  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
+  version = "v1.6.2"
 
 [[projects]]
+  digest = "1:0a69a1c0db3591fcefb47f115b224592c8dfa4368b7ba9fae509d5e16cdc95c8"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
+
+[[projects]]
+  digest = "1:3f53e9e4dfbb664cd62940c9c4b65a2171c66acd0b7621a1a6b8e78513525a52"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "3ec0642a7fb6488f65b06f9040adc67e3990296a"
-
-[[projects]]
-  name = "github.com/xeipuuv/gojsonpointer"
-  packages = ["."]
-  revision = "e0fe6f68307607d540ed8eac07a342c33fa1b54a"
-
-[[projects]]
-  name = "github.com/xeipuuv/gojsonreference"
-  packages = ["."]
-  revision = "e02fc20de94c78484cd5ffb007f8af96be030a45"
-
-[[projects]]
-  name = "github.com/xeipuuv/gojsonschema"
-  packages = ["."]
-  revision = "00f9fafb54d2244d291b86ab63d12c38bd5c3886"
+  pruneopts = "UT"
+  revision = "ad15b42461921f1fb3529b058c6786c6a45d5162"
+  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
+  digest = "1:f4e5276a3b356f4692107047fd2890f2fe534f4feeb6b1fd2f6dfbd87f1ccf54"
+  name = "github.com/xeipuuv/gojsonpointer"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "4e3ac2762d5f479393488629ee9370b50873b3a6"
+
+[[projects]]
+  branch = "master"
+  digest = "1:dc6a6c28ca45d38cfce9f7cb61681ee38c5b99ec1425339bfc1e1a7ba769c807"
+  name = "github.com/xeipuuv/gojsonreference"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bd5ef7bd5415a7ac448318e64f11a24cd21e594b"
+
+[[projects]]
+  digest = "1:41bd4de0a27c0b7affef4083bc8f86501b4c7d891f95809a0fb758a23eb5e78f"
+  name = "github.com/xeipuuv/gojsonschema"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "da425ebb7609ba06a0f395fc8a254d1c303364a0"
+  version = "v1.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8e241498e35f550e5192ee6b1f6ff2c0a7ffe81feff9541d297facffe1383979"
   name = "golang.org/x/crypto"
   packages = [
     "ed25519",
-    "ed25519/internal/edwards25519"
+    "ed25519/internal/edwards25519",
+    "pbkdf2",
+    "ssh/terminal",
   ]
-  revision = "beaf6a35706e5032ae4c3fcf342c663c069f44d2"
+  pruneopts = "UT"
+  revision = "7c1a557ab941a71c619514f229f0b27ccb0c27cf"
 
 [[projects]]
+  branch = "master"
+  digest = "1:711b716e33cd86b5ec7ce62f2b226915092323b6b6c95e1e2df922bec4da3d1b"
+  name = "golang.org/x/lint"
+  packages = [
+    ".",
+    "golint",
+  ]
+  pruneopts = "UT"
+  revision = "5906bd5c48cd840279ace88b165057fbbd7fb35a"
+
+[[projects]]
+  branch = "master"
+  digest = "1:f5aa274a0377f85735edc7fedfb0811d3cbc20af91633797cb359e29c3272271"
   name = "golang.org/x/sys"
-  packages = ["unix"]
-  revision = "8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9"
+  packages = [
+    "unix",
+    "windows",
+  ]
+  pruneopts = "UT"
+  revision = "fa43e7bc11baaae89f3f902b2b4d832b68234844"
 
 [[projects]]
+  branch = "master"
+  digest = "1:c0bb60d9eb4609e058ba4a0cd78b0f95d409bd7f2736155b8f60b70117584fcd"
+  name = "golang.org/x/tools"
+  packages = [
+    "go/ast/astutil",
+    "go/gcexportdata",
+    "go/internal/gcimporter",
+    "go/types/typeutil",
+  ]
+  pruneopts = "UT"
+  revision = "87312bc3edd028a31d662e145d02b38790f4c716"
+
+[[projects]]
+  digest = "1:7fbe10f3790dc4e6296c7c844c5a9b35513e5521c29c47e10ba99cd2956a2719"
   name = "gopkg.in/square/go-jose.v2"
   packages = [
     ".",
     "cipher",
     "json",
-    "jwt"
+    "jwt",
   ]
-  revision = "f8f38de21b4dcd69d0413faf231983f5fd6634b1"
-  version = "v2.1.3"
+  pruneopts = "UT"
+  revision = "ef984e69dd356202fd4e4910d4d9c24468bdf0b8"
+  version = "v2.1.9"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b714821bae7c15e6a496ad1ba1fb387ab1dfdd70d8a4a4bd19bf64f4bab6232d"
+  input-imports = [
+    "github.com/coreos/go-systemd/activation",
+    "github.com/coreos/go-systemd/journal",
+    "github.com/coreos/go-systemd/sdjournal",
+    "github.com/dcos/dcos-go/dcos",
+    "github.com/dcos/dcos-go/dcos/http/transport",
+    "github.com/dcos/dcos-go/dcos/nodeutil",
+    "github.com/golang/lint/golint",
+    "github.com/gorilla/mux",
+    "github.com/sirupsen/logrus",
+    "github.com/xeipuuv/gojsonschema",
+    "golang.org/x/lint/golint",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
