@@ -16,7 +16,7 @@ lint: docker
 		--privileged \
 		--rm \
 		$(IMAGE_NAME) \
-		go list ./... | grep -v /vendor/ | xargs -L1 golint -set_exit_status
+		go list ./... | grep -v /vendor/ | xargs golint -set_exit_status
 
 test: docker lint vet
 	@echo "+$@"

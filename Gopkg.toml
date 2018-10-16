@@ -24,8 +24,6 @@
 #   go-tests = true
 #   unused-packages = true
 
-required = ["golang.org/x/lint/golint", "github.com/golang/lint/golint"]
-
 [[constraint]]
   name = "github.com/coreos/go-systemd"
   version = "17.0.0"
