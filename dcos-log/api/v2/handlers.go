@@ -319,7 +319,13 @@ func filesAPIHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		case <-time.After(time.Microsecond * 100):
 			{
-				_, err := io.Copy(w, r)
+				// TODO(rgoegge): This is a temporary fix.
+				// Not ideal, but will feel responsive enough to the enduser for now.
+				// The right fix should be a blocking io.Copy() call until there is data to read.
+				bytes, err := io.Copy(w, r)
+				if bytes == 0 {
+					time.Sleep(time.Second)
+				}
 				if err != nil && err != reader.ErrNoData {
 					logrus.Errorf("error while reading the files API reader: %s. Request: %s", err, req.RequestURI)
 				}
