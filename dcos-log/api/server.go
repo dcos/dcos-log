@@ -72,7 +72,7 @@ func StartServer(cfg *config.Config) error {
 		return err
 	}
 
-	listeners, err := activation.Listeners(true)
+	listeners, err := activation.Listeners()
 	if err != nil {
 		return fmt.Errorf("Unable to get listeners: %s", err)
 	}
