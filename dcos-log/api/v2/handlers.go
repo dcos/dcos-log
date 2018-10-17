@@ -643,7 +643,7 @@ func browseFiles(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(files); err != nil {
-		logError(w, req, fmt.Sprintf("unable to encode sandbox files: %s. Items: %s", err, files), http.StatusInternalServerError)
+		logError(w, req, fmt.Sprintf("unable to encode sandbox files: %s. Items: %x", err, files), http.StatusInternalServerError)
 		return
 	}
 }
