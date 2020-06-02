@@ -2,89 +2,137 @@
 
 
 [[projects]]
+  digest = "1:e757f61a3878b8fac0c915e76c052cc6fc66fad52019712aff37045d37e0cce4"
   name = "github.com/coreos/go-systemd"
   packages = [
     "activation",
+    "internal/dlopen",
     "journal",
-    "sdjournal"
+    "sdjournal",
   ]
-  revision = "5af4316bea2ff5cff219164870b57482993eee59"
+  pruneopts = ""
+  revision = "d3cd4ed1dbcf5835feba465b180436db54f20228"
+  version = "v21"
 
 [[projects]]
+  digest = "1:fdb805105334f5682a8dc9654c3f73e9fd32f6d0427c03963187a0b8566f87d9"
   name = "github.com/coreos/pkg"
   packages = ["dlopen"]
+  pruneopts = ""
   revision = "3ac0863d7acf3bc44daf49afef8919af12f704ef"
   version = "v3"
 
 [[projects]]
+  digest = "1:cdcaa84a95a32fba017247141d074e4c1ecb5cbdcde21e054458633026b02154"
   name = "github.com/dcos/dcos-go"
   packages = [
     "dcos",
     "dcos/http/transport",
     "dcos/nodeutil",
-    "exec"
+    "exec",
   ]
+  pruneopts = ""
   revision = "2af18acc1a707e5a527f72aabaae7f5d1c2422d2"
 
 [[projects]]
   branch = "master"
+  digest = "1:dbbeb8ddb0be949954c8157ee8439c2adfd8dc1c9510eb44a6e58cb68c3dce28"
   name = "github.com/gorilla/context"
   packages = ["."]
+  pruneopts = ""
   revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
 
 [[projects]]
+  digest = "1:e222a55711308d702e06368319a6c0eff80f457e06a95b383a25bc10acc5a32b"
   name = "github.com/gorilla/mux"
   packages = ["."]
+  pruneopts = ""
   revision = "757bef944d0f21880861c2dd9c871ca543023cba"
 
 [[projects]]
+  digest = "1:41b30611fbfa27d897a9a7375f1495aa3b2f2b5792223345c3345b26bd24db08"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
+  pruneopts = ""
   revision = "3ec0642a7fb6488f65b06f9040adc67e3990296a"
 
 [[projects]]
+  digest = "1:51f81b00e2e19324358c998712da59c5496f1dea6040f80c2c489d1899a350b6"
   name = "github.com/xeipuuv/gojsonpointer"
   packages = ["."]
+  pruneopts = ""
   revision = "e0fe6f68307607d540ed8eac07a342c33fa1b54a"
 
 [[projects]]
+  digest = "1:feb667646650e600036a4731f959e746eb755970fc2c8a3d54c66a0cde7ac69d"
   name = "github.com/xeipuuv/gojsonreference"
   packages = ["."]
+  pruneopts = ""
   revision = "e02fc20de94c78484cd5ffb007f8af96be030a45"
 
 [[projects]]
+  digest = "1:06739a4a7063858501668502e2e10ee3c4056463b0a43e5130cfa526a5a5812e"
   name = "github.com/xeipuuv/gojsonschema"
   packages = ["."]
+  pruneopts = ""
   revision = "00f9fafb54d2244d291b86ab63d12c38bd5c3886"
 
 [[projects]]
   branch = "master"
+  digest = "1:fe9daaff765cf22a8d96fa9d40319f15508e245a275ac66f3b288d833d53e2be"
   name = "golang.org/x/crypto"
   packages = [
     "ed25519",
-    "ed25519/internal/edwards25519"
+    "ed25519/internal/edwards25519",
   ]
+  pruneopts = ""
   revision = "beaf6a35706e5032ae4c3fcf342c663c069f44d2"
 
 [[projects]]
+  digest = "1:b6e4bf8197b5de25f2ed05c603d39d619f4c41bb4a573ef5274c3446df44d6e4"
   name = "golang.org/x/sys"
   packages = ["unix"]
+  pruneopts = ""
   revision = "8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9"
 
 [[projects]]
+  digest = "1:be4ed0a2b15944dd777a663681a39260ed05f9c4e213017ed2e2255622c8820c"
   name = "gopkg.in/square/go-jose.v2"
   packages = [
     ".",
     "cipher",
     "json",
-    "jwt"
+    "jwt",
   ]
+  pruneopts = ""
   revision = "f8f38de21b4dcd69d0413faf231983f5fd6634b1"
   version = "v2.1.3"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b714821bae7c15e6a496ad1ba1fb387ab1dfdd70d8a4a4bd19bf64f4bab6232d"
+  input-imports = [
+    "github.com/coreos/go-systemd/activation",
+    "github.com/coreos/go-systemd/journal",
+    "github.com/coreos/go-systemd/sdjournal",
+    "github.com/coreos/pkg/dlopen",
+    "github.com/dcos/dcos-go/dcos",
+    "github.com/dcos/dcos-go/dcos/http/transport",
+    "github.com/dcos/dcos-go/dcos/nodeutil",
+    "github.com/dcos/dcos-go/exec",
+    "github.com/gorilla/context",
+    "github.com/gorilla/mux",
+    "github.com/sirupsen/logrus",
+    "github.com/xeipuuv/gojsonpointer",
+    "github.com/xeipuuv/gojsonreference",
+    "github.com/xeipuuv/gojsonschema",
+    "golang.org/x/crypto/ed25519",
+    "golang.org/x/crypto/ed25519/internal/edwards25519",
+    "golang.org/x/sys/unix",
+    "gopkg.in/square/go-jose.v2",
+    "gopkg.in/square/go-jose.v2/cipher",
+    "gopkg.in/square/go-jose.v2/json",
+    "gopkg.in/square/go-jose.v2/jwt",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
